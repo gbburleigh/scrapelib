@@ -8,10 +8,10 @@ def read_json(fn):
         return obj
 
 def merge_dictionaries(root, branch):
-    # Root: Dictionary of dictionaries
-    # Branch: Dictionary of dictionaries
-    # Find shared keys in nested dictionaries, update them
-    # on root. 
+    """Root: Dictionary of dictionaries
+    Branch: Dictionary of dictionaries
+    Find shared keys in nested dictionaries, update them
+    on root. """
     for child in branch.items():
         for key in child[1].keys():
             if key in root[child[0]].keys():
@@ -37,3 +37,21 @@ def fetch_page(self, url):
     file_ = open(f'cache/scraped_html/{filename}', 'w')
     file_.write(data)
     file_.close()
+
+def xpath_soup(element):
+    """
+    Generate xpath from BeautifulSoup4 element. Code found at
+    https://gist.github.com/ergoithz/6cf043e3fdedd1b94fcf """
+    components = []
+    child = element if element.name else element.parent
+    for parent in child.parents:  # type: bs4.element.Tag
+        siblings = parent.find_all(child.name, recursive=False)
+        components.append(
+            child.name if 1 == len(siblings) else '%s[%d]' % (
+                child.name,
+                next(i for i, s in enumerate(siblings, 1) if s is child)
+                )
+            )
+        child = parent
+    components.reverse()
+    return '/%s' % '/'.join(components)

@@ -8,6 +8,7 @@ from webdriver_manager import chrome
 from webdriver_manager.chrome import ChromeDriverManager
 from util import *
 from bs4 import BeautifulSoup
+import doctest
 
 class ThreadScraper:
     """Generic thread scraper object with HTML targets passed
