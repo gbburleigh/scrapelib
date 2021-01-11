@@ -37,3 +37,11 @@ The Analyzer object performs different analyses on the data returned by ThreadSc
 # Reporter
 
 Compiles report of current state saved by DriverBot and sends them to user at an interval of their choosing. Logs failures, errors, and other important information. 
+
+# Changelog
+
+<h2>(1/10/21)</h2>
+<p>Added the DriverBot class. This is the main interface through which users will interact with the library. Added the Schedule module to handle the processing of jobs automatically at intervals. Added the Crawler class. Inherits DriverBot webdriver in order to crawl different forums and find raw HTML data for forum posts. HTML data is saved to cache and sent to ThreadScraper for parsing.</p>
+
+<h2>(1/11/21)</h2>
+<p> Added temporary ThreadScraper file to hold testing class. Added URL scraping on Crawler for finding new posts. Implemented BeautifulSoup object in scraper for HTML parsing. Added logging and fixed Chrome processes not closing after program is closed. Adjusted config on webdriver-manager module for reduced clutter on CLI at runtime. </p>
