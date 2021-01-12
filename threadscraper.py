@@ -11,9 +11,9 @@ from bs4 import BeautifulSoup
 class ThreadScraper:
     def __init__(self, target=None):
         self.soup = None
+        self.logger = logging.getLogger(__name__)
 
-    def make_soup(self, html):
-        #print('Making soup with {}'.format(html))
+    def make_soup(self, html, url):
         self.soup = BeautifulSoup(html, 'html.parser')
-        title = self.soup.find_all('h1', class_='lia-message-subject-banner lia-component-forums-widget-message-subject-banner')
-        print(title)
+        title = self.soup.find('h1', class_='lia-message-subject-banner lia-component-forums-widget-message-subject-banner').text
+        self.logger.info('Successfully scraped url {}'.format(url))
