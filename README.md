@@ -45,3 +45,9 @@ Compiles report of current state saved by DriverBot and sends them to user at an
 
 <h2>(1/11/21)</h2>
 <p> Added temporary ThreadScraper file to hold testing class. Added URL scraping on Crawler for finding new posts. Implemented BeautifulSoup object in scraper for HTML parsing. Added logging and fixed Chrome processes not closing after program is closed. Adjusted config on webdriver-manager module for reduced clutter on CLI at runtime. </p>
+
+<h2>(1/13/21)</h2>
+<p>Added JSON logging of scraped data. Revamped the ThreadScraper class to include additional BS4 elements and properly scrape URLs and text. Added the atexit module. Cleaned up old code. Added cache directory and removed saving of entire HTML documents to reduce disk space usage.</p>
+
+<h2>(1/15/21)</h2>
+<p>Rough prototype of Driver class and functionality complete. Fetches posts, users, profile URLs, metadata, and edit status from recent posts on Upwork. Consider removing the Threadscraper class and adding its methods into the Crawler class, since all HTML parsing is done using BeautifulSoup rather than a Webdriver object. Discuss with Hatim about additional fields that should be recorded and parameters for caching.</p>
