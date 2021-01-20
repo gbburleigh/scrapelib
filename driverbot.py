@@ -30,7 +30,7 @@ class DriverBot:
         self.webdriver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
 
         #Configure scheduling
-        schedule.every(1).minutes.do(self.run)
+        schedule.every().day..at('00:00').do(self.run)
         
     def run(self):
 
@@ -72,5 +72,7 @@ if __name__ == "__main__":
     #Run test functions
     d = DriverBot()
     d.run()
+    while True:
+        schedule.run_pending()
     atexit.register(d.close())
     d.close()
