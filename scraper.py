@@ -6,7 +6,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 from webdriver_manager import chrome
 from webdriver_manager.chrome import ChromeDriverManager
-from util import *
+from resources.util import *
 from bs4 import BeautifulSoup
 import doctest
 
