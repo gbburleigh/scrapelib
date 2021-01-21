@@ -8,7 +8,7 @@ class DriverBot:
         #Configure packages
         if sys.prefix != sys.base_prefix:
             import subprocess
-            subprocess.call('config.sh')
+            subprocess.call('/resources/config.sh')
 
         #Configure logger
         self.logger = logging.getLogger(__name__)
