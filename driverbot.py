@@ -1,14 +1,16 @@
-import sys, os, time, json, logging, schedule, datetime, atexit
+import sys,os
+
+#Configure packages FIXME
+if sys.prefix == sys.base_prefix:
+    import subprocess
+    #subprocess.Popen('source activate.sh', shell=True)
+
+import time, json, logging, schedule, datetime, atexit
 from selenium import webdriver
 from crawler import ForumCrawler
 
 class DriverBot:
     def __init__(self):
-
-        #Configure packages
-        if sys.prefix != sys.base_prefix:
-            import subprocess
-            subprocess.call('/resources/config.sh')
 
         #Configure logger
         self.logger = logging.getLogger(__name__)
@@ -82,7 +84,9 @@ class DriverBot:
 
 if __name__ == "__main__":
     #Run test functions
+    time.sleep(5)
     d = DriverBot()
+    print('I GOT HERE!')
     d.run()
     try:
         if sys.argv[1] == '-s':
