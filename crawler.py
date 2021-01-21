@@ -1,5 +1,6 @@
 import sys, os, time, json, logging, schedule, datetime
 from threadscraper import ThreadScraper
+from selenium.common.exceptions import StaleElementReferenceException
 
 class ForumCrawler:
     def __init__(self, driver, target=None):

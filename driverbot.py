@@ -1,9 +1,6 @@
 import sys, os, time, json, logging, schedule, datetime, atexit
 from selenium import webdriver
-from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.action_chains import ActionChains
 from webdriver_manager import chrome
 from webdriver_manager.chrome import ChromeDriverManager
 from crawler import ForumCrawler
@@ -57,8 +54,8 @@ class DriverBot:
                 os.remove(os.path.abspath(oldest_file))
         
         #Log data
-        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M}")
-        with open(os.getcwd() + f'/cache/logs/log_{now}.json', 'w') as f:
+        now = datetime.datetime.now().strftime("%Y-%m-%d")
+        with open(os.getcwd() + '/cache/logs/{}.json'.format(now), 'w') as f:
             f.write(data)
         self.logger.warning('Finished scan.')
    
@@ -72,8 +69,11 @@ if __name__ == "__main__":
     #Run test functions
     d = DriverBot()
     d.run()
-    if sys.argv[1]:
-        while True:
-            schedule.run_pending()
+    try:
+        if sys.argv[1] == '-s':
+            while True:
+                schedule.run_pending()
+    except:
+        pass
     atexit.register(d.close())
     d.close()
