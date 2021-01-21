@@ -1,8 +1,5 @@
 import sys, os, time, json, logging, schedule, datetime, atexit
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager import chrome
-from webdriver_manager.chrome import ChromeDriverManager
 from crawler import ForumCrawler
 
 class DriverBot:
@@ -21,10 +18,22 @@ class DriverBot:
         self.logger.addHandler(self.fh)
 
         #Configure webdriver
-        options = Options()
-        options.add_argument('--headless')
-        options.add_argument('--disable-gpu')
-        self.webdriver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
+        if '-f' in sys.argv:
+            from selenium.webdriver.firefox.options import Options
+            from webdriver_manager import firefox
+            from webdriver_manager.firefox import GeckoDriverManager
+            options = Options()
+            options.add_argument('--headless')
+            options.add_argument('--disable-gpu')
+            self.webdriver = webdriver.Firefox(executable_path=GeckoDriverManager().install(), options=options)
+        else:
+            from selenium.webdriver.chrome.options import Options
+            from webdriver_manager import chrome
+            from webdriver_manager.chrome import ChromeDriverManager
+            options = Options()
+            options.add_argument('--headless')
+            options.add_argument('--disable-gpu')
+            self.webdriver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
 
         #Configure scheduling
         schedule.every().day.at('00:00').do(self.run)
