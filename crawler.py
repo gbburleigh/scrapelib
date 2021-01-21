@@ -1,15 +1,5 @@
 import sys, os, time, json, logging, schedule, datetime
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.action_chains import ActionChains
-from webdriver_manager import chrome
-from webdriver_manager.chrome import ChromeDriverManager
 from threadscraper import ThreadScraper
-from selenium.common.exceptions import NoSuchElementException
-from selenium.common.exceptions import StaleElementReferenceException
-from selenium.webdriver.support.ui import WebDriverWait
 
 class ForumCrawler:
     def __init__(self, driver, target=None):

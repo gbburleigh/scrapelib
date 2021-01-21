@@ -30,7 +30,7 @@ class DriverBot:
         self.webdriver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
 
         #Configure scheduling
-        schedule.every().day..at('00:00').do(self.run)
+        schedule.every().day.at('00:00').do(self.run)
         
     def run(self):
 
@@ -49,7 +49,7 @@ class DriverBot:
         data = crawler.crawl()
         
         #Cleanup cache
-        _, _, filenames = os.walk(os.getcwd() + '/cache/logs')
+        _, _, filenames = next(os.walk(os.getcwd() + '/cache/logs'))
         if len(filenames) > 100:
             dif = len(filenames) - 100
             for _ in range(dif):
@@ -72,7 +72,8 @@ if __name__ == "__main__":
     #Run test functions
     d = DriverBot()
     d.run()
-    while True:
-        schedule.run_pending()
+    if sys.argv[1]:
+        while True:
+            schedule.run_pending()
     atexit.register(d.close())
     d.close()

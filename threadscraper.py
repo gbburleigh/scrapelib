@@ -1,11 +1,4 @@
 import sys, os, time, json, logging
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.action_chains import ActionChains
-from webdriver_manager import chrome
-from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 
 class ThreadScraper:
