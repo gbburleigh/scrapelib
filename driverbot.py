@@ -33,7 +33,7 @@ class DriverBot:
             options = Options()
             options.add_argument('--headless')
             self.webdriver = webdriver.Firefox(executable_path=GeckoDriverManager().install(), \
-                firefox_options=options, log_path='/cache/logs/geckodriver.log')
+                firefox_options=options, log_path=os.getcwd()+ '/cache/logs/geckodriver.log')
         else:
             from selenium.webdriver.chrome.options import Options
             from webdriver_manager import chrome
