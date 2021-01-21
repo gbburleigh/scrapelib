@@ -4,6 +4,12 @@ from crawler import ForumCrawler
 
 class DriverBot:
     def __init__(self):
+
+        #Configure packages
+        if sys.prefix != sys.base_prefix:
+            import subprocess
+            subprocess.call('configu.sh')
+
         #Configure logger
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.DEBUG)
@@ -24,8 +30,7 @@ class DriverBot:
             from webdriver_manager.firefox import GeckoDriverManager
             options = Options()
             options.add_argument('--headless')
-            options.add_argument('--disable-gpu')
-            self.webdriver = webdriver.Firefox(executable_path=GeckoDriverManager().install(), options=options)
+            self.webdriver = webdriver.Firefox(executable_path=GeckoDriverManager().install(), firefox_options=options)
         else:
             from selenium.webdriver.chrome.options import Options
             from webdriver_manager import chrome
