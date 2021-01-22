@@ -3,11 +3,13 @@ from threadscraper import ThreadScraper
 from selenium.common.exceptions import StaleElementReferenceException
 
 class ForumCrawler:
-    def __init__(self, driver, target=None):
+    def __init__(self, driver, target=None, genesis=None):
         #Inherit objects and instantiate scraper class
         self.driver = driver
         self.scraper = ThreadScraper()
         self.logger = logging.getLogger(__name__)
+        self.genesis = genesis
+        self.mode = target
 
         #Get targets
         if target is None:
@@ -31,6 +33,8 @@ class ForumCrawler:
             self.logger.debug('Successfully obtained URLs on homepage')
             pkg = {}
             for url in urls:
+                if self.genesis is None:
+                    self.genesis = url
                 try:
                     self.driver.get(url)
                     time.sleep(3)
@@ -60,3 +64,15 @@ class ForumCrawler:
                 pass
 
         return urls
+
+    def return_genesis(self):
+        if self.genesis is not None:
+            #We've scanned already, and set a genesis block
+            return self.genesis
+        else:
+            if self.mode == 'upwork':
+                #If we don't have a genesis post, choose an arbitrary one
+                self.driver.get(self.targets[0])
+                links = self.driver.find_elements_by_xpath("//a[@class='page-link lia-link-navigation lia-custom-event']")
+                urls = self.get_links("//a[@class='page-link lia-link-navigation lia-custom-event']")[0]
+              

@@ -78,7 +78,6 @@ class DriverBot:
    
     def close(self):
         #Cleans up webdriver processes and exits program
-
         self.webdriver.quit()
         sys.exit()
 
@@ -86,7 +85,6 @@ if __name__ == "__main__":
     #Run test functions
     time.sleep(5)
     d = DriverBot()
-    print('I GOT HERE!')
     d.run()
     try:
         if sys.argv[1] == '-s':
@@ -96,3 +94,4 @@ if __name__ == "__main__":
         pass
     atexit.register(d.close())
     d.close()
+

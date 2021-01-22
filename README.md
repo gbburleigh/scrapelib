@@ -51,3 +51,9 @@ Compiles report of current state saved by DriverBot and sends them to user at an
 
 <h2>(1/15/21)</h2>
 <p>Rough prototype of Driver class and functionality complete. Fetches posts, users, profile URLs, metadata, and edit status from recent posts on Upwork. Consider removing the Threadscraper class and adding its methods into the Crawler class, since all HTML parsing is done using BeautifulSoup rather than a Webdriver object. Discuss with Hatim about additional fields that should be recorded and parameters for caching.</p>
+
+<h2>(1/18/21)</h2>
+<p> </p>
+
+<h2>(1/21/21)</h2>
+<p> </p>
