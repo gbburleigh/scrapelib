@@ -53,7 +53,25 @@ Compiles report of current state saved by DriverBot and sends them to user at an
 <p>Rough prototype of Driver class and functionality complete. Fetches posts, users, profile URLs, metadata, and edit status from recent posts on Upwork. Consider removing the Threadscraper class and adding its methods into the Crawler class, since all HTML parsing is done using BeautifulSoup rather than a Webdriver object. Discuss with Hatim about additional fields that should be recorded and parameters for caching.</p>
 
 <h2>(1/18/21)</h2>
-<p> </p>
+<p>Added support for additional forum categories. Configured repository on QUEST server. Added
+KeyInterrupt check to close all processes. Added Firefox driver support for use on QUEST. Added
+command line options controlling package dependencies.</p>
 
 <h2>(1/21/21)</h2>
-<p> </p>
+<p>Added activation script. Activates VENV if necessary (or creates on) and configures required packages.
+Added cache cleaning based on filecount and oldest files found. Added package creation stamp to parsed data
+packets for comparison when parsing oldest file (for finding genesis post).
+</p>
+
+<h2>(1/24/21)</h2>
+<p>Fixed activation script not properly running/configuring environment on program execution. Fixed broken
+function for finding oldest file in cache. Added JSON parsing to find oldest encountered link for genesis
+post. </p>
+
+<h2>(1/27/21)</h2>
+<p>Added preliminary page scrolling functionality. Added next page link generator. Added traceback logging 
+for debugging. Consider using 'next page' button instead of crafting new link for next page.</p>
+
+<h2>(1/29/21</h2>
+<p>Fixed page scrolling functionality/broken parsing. Consider adding some sort of filter to the links to 
+make sure page that aren't threads aren't accidentally parsed as though they were.</p>

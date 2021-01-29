@@ -1,9 +1,10 @@
-import sys,os
+import sys,os, signal
 
 #Configure packages FIXME
 if sys.prefix == sys.base_prefix:
     import subprocess
-    #subprocess.Popen('source activate.sh', shell=True)
+    print('Configuring...')
+    os.system('. resources/activate.sh')
 
 import time, json, logging, schedule, datetime, atexit
 from selenium import webdriver
@@ -83,11 +84,14 @@ class DriverBot:
 
 if __name__ == "__main__":
     #Run test functions
-    time.sleep(5)
     d = DriverBot()
-    d.run()
     try:
-        if sys.argv[1] == '-s':
+        d.run()
+    except KeyboardInterrupt:
+        d.close()
+        os.system('deactivate')
+    try:
+        if '-s' in sys.argv:
             while True:
                 schedule.run_pending()
     except:
