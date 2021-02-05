@@ -6,11 +6,11 @@ if sys.prefix == sys.base_prefix:
     print('Configuring...')
     os.system('. resources/activate.sh')
 
-import time, json, logging, schedule, datetime, atexit
+import time, json, logging, schedule, datetime, atexit, csv
 from selenium import webdriver
 from crawler import ForumCrawler
 
-class DriverBot:
+class Driver:
     def __init__(self):
 
         #Configure logger
@@ -82,9 +82,44 @@ class DriverBot:
         self.webdriver.quit()
         sys.exit()
 
+    def write_csv(self, pkg):
+        import pandas
+        try:
+            with open(os.getcwd() + f'/cache/csv/{datetime.datetime.now().strftime("%Y-%m-%d")}.csv') as f:
+                df = pandas.read_json(json.load(pkg))
+                f.write(df.to_csv())
+        except:
+            self.logger.critical('Errored while writing to csv!')
+
+
+    def load_history(self):
+        _, _, filenames = next(os.walk(os.getcwd() + '/cache/logs'))
+        filenames.remove('debug.log')
+        newest_file = str(max([datetime.datetime.strptime(x.strip('.json'), '%Y-%m-%d') for x in filenames]).date()) + '.json'
+
+        try:
+            with open(os.getcwd() + '/cache/logs/' + newest_file, 'r'):
+                data = json.load(f)
+                self.hist = data
+        except:
+            self.logger.critical('Error while loading history!')
+
+    def flattenjson(b, delim):
+        #Referenced from https://stackoverflow.com/questions/1871524/how-can-i-convert-json-to-csv
+        val = {}
+        for i in b.keys():
+            if isinstance(b[i], dict):
+                get = flattenjson(b[i], delim)
+                for j in get.keys():
+                    val[i + delim + j] = get[j]
+            else:
+                val[i] = b[i]
+                
+        return val
+
 if __name__ == "__main__":
     #Run test functions
-    d = DriverBot()
+    d = Driver()
     try:
         d.run()
     except KeyboardInterrupt:

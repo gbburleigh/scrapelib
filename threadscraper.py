@@ -1,20 +1,26 @@
-import sys, os, time, json, logging, datetime, traceback, inspect
+import sys, os, time, json, logging, datetime, traceback, inspect, uuid
 from bs4 import BeautifulSoup
 
 class ThreadScraper:
-    def __init__(self, driver, target=None):
+    def __init__(self, driver, hist, target=None):
         #Instantiate soup object and inherit logger.
         self.soup = None
         self.driver = driver
+        self.hist = hist
         self.logger = logging.getLogger(__name__)
+        self.users = {}
 
-    def make_soup(self, html, url):
+    def make_soup(self, html, url, tar=None):
         """Main thread scraper function. Uses BeautifulSoup to parse HTML based on class tags and 
         compiles relevant data/metadata in dict format. Detects edit status and moderation status."""
         self.soup = BeautifulSoup(html, 'html.parser')
         time.sleep(2)
-
-        print(f'PARSING {url}')
+        
+        try:
+            hist_partition = self.hist[tar]
+            version = hist_partition[url]['update_version'] 
+        except KeyError or ValueError:
+            version = 0
 
         try:
             title = self.soup.find('h1', class_='lia-message-subject-banner lia-component-forums-widget-message-subject-banner')\
@@ -38,6 +44,7 @@ class ThreadScraper:
 
         edit_status = False
         for pagenum in range(1, pages + 1):
+            print(f'Currently on page {pagenum} of {url}')
             if pagenum == 1:
                 pass
             else:
@@ -65,7 +72,12 @@ class ThreadScraper:
                     msg.find('a', class_='lia-link-navigation lia-page-link lia-user-name-link user_name', href=True)['href']
                 name = msg.find('a', class_='lia-link-navigation lia-page-link lia-user-name-link user_name').find('span').text
                 member_since = msg.find('span', class_='custom-upwork-member-since').text.split(': ')[1]
-                contributors[name] = [_url, member_since]
+                if name not in self.users:
+                    user_id = uuid.uuid4().hex[:8]
+                    self.users[name] = {'user_id': user_id, 'user_url': _url, 'member_since': member_since}
+                else:
+                    user_id = self.users[name]['user_id']
+                #contributors[name] = [_url, member_since]
                 body = msg.find('div', class_='lia-message-body-content').find_all('p')
                 post = ''
                 for p in body:
@@ -81,16 +93,20 @@ class ThreadScraper:
                     except:
                         pass
                 if name not in messages.keys():
-                    messages[name] = post
+                    messages[user_id] = [post]
+                else:
+                    messages[user_id].append(post)
+                
 
         pkg = {}
         pkg['pkg_creation_stamp'] = str(datetime.datetime.now())
         pkg['title'] = title
         pkg['post_date'] = post_date
         pkg['edit_date'] = edit_date
-        pkg['contributors'] = contributors
+        pkg['contributors'] = self.users
         pkg['messages'] = messages
         pkg['moderated'] = edit_status
+        pkg['update_version'] = version + 1
 
         return pkg
 

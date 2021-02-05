@@ -1,29 +1,32 @@
-import sys, os, time, json, logging, schedule, datetime, traceback, inspect
+import sys, os, time, json, logging, schedule, datetime, traceback, inspect, csv
 from threadscraper import ThreadScraper
 from selenium.common.exceptions import StaleElementReferenceException
-from progress.spinner import Spinner
 
-class ForumCrawler:
+class Crawler:
     def __init__(self, driver, target=None, genesis=None):
         #Inherit objects and instantiate scraper class
         self.driver = driver
-        self.scraper = ThreadScraper(self.driver)
         self.logger = logging.getLogger(__name__)
         self.genesis = {}
+        self.hist = {}
+        self.load_history()
         self.read_genesis()
         self.reached_genesis = False
         self.mode = target
 
+        self.scraper = ThreadScraper(self.driver, self.hist)
+
         #Get targets
-        if target is None:
+        if target is None and '-f' not in sys.argv:
             raise FileNotFoundError
         if target == 'upwork':
             self.targets = ['https://community.upwork.com/t5/forums/recentpostspage', \
                 'https://community.upwork.com/t5/Announcements/bd-p/news', \
                 'https://community.upwork.com/t5/Freelancers/bd-p/freelancers']
 
-        for tar in self.targets:
-            self.genesis[tar] = None
+        if '-f' not in sys.argv:
+            for tar in self.targets:
+                self.genesis[tar] = None
 
         self.logger.info('Crawler configured successfully')
 
@@ -88,9 +91,9 @@ class ForumCrawler:
 
                     #Parse threads and send to subpackage
                     try:
-                        pkg[url].update(self.scraper.make_soup(self.driver.page_source, url))
+                        pkg[url].update(self.scraper.make_soup(self.driver.page_source, url, tar))
                     except KeyError:
-                        pkg[url] = self.scraper.make_soup(self.driver.page_source, url)
+                        pkg[url] = self.scraper.make_soup(self.driver.page_source, url, tar)
 
                 #We've hit the last post, let's exit    
                 if self.reached_genesis is True:
@@ -169,7 +172,7 @@ class ForumCrawler:
         oldest_file = str(min([datetime.datetime.strptime(x.strip('.json'), '%Y-%m-%d') for x in filenames]).date()) + '.json'
         
         try:
-            with open(os.getcwd() + '/cache/logs/' + oldest_file, 'rb') as f:
+            with open(os.getcwd() + '/cache/logs/' + oldest_file, 'r') as f:
                 data = json.load(f)
                 for url in data.keys():
                     li = []
@@ -181,7 +184,7 @@ class ForumCrawler:
 
             self.logger.info(f'Got genesis URLS: {self.genesis}')
         except:
-            pass
+            self.logger.critical('Error loading genesis data!')
 
     def get_page_numbers(self):
         from bs4 import BeautifulSoup
@@ -199,4 +202,73 @@ class ForumCrawler:
 
         return pages
 
-              
+    def load_history(self):
+        _, _, filenames = next(os.walk(os.getcwd() + '/cache/logs'))
+        filenames.remove('debug.log')
+        newest_file = str(max([datetime.datetime.strptime(x.strip('.json'), '%Y-%m-%d') for x in filenames]).date()) + '.json'
+
+        try:
+            with open(os.getcwd() + '/cache/logs/' + newest_file, 'r'):
+                data = json.load(f)
+                self.hist = data
+        except:
+            self.logger.critical('Error while loading history!')    
+
+if __name__ == '__main__':
+    from selenium import webdriver
+    from selenium.webdriver.chrome.options import Options
+    from webdriver_manager import chrome
+    from webdriver_manager.chrome import ChromeDriverManager
+    options = Options()
+    options.add_argument('--headless')
+    options.add_argument('--disable-gpu')
+    driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
+    c = Crawler(driver)
+    targets = ['https://community.upwork.com/t5/Announcements/Insight-on-how-Job-Success-Score-is-calculated/m-p/87248',\
+                'https://community.upwork.com/t5/Announcements/Replacing-5-Star-Average-Feedback-with-Job-Success-Score/m-p/106120']
+
+    pkg = {}
+    for target in targets:
+        driver.get(target)
+        time.sleep(3)
+        try:
+            pkg[target].update(c.scraper.make_soup(c.driver.page_source, target))
+        except KeyError:
+            pkg[target] = c.scraper.make_soup(c.driver.page_source, target)
+
+    now = datetime.datetime.now().strftime("%Y-%m-%d")
+    with open(os.getcwd() + '/cache/hatim_logs/{}_HATIM.json'.format(now), 'w') as f:
+        f.write(json.dumps(pkg, indent=4))
+
+    with open(os.getcwd() + '/cache/hatim_logs/{}_HATIM.json'.format(now), 'r') as f:
+        data = json.loads(f.read())
+
+    with open(os.getcwd() + f'/cache/csv/{datetime.datetime.now().strftime("%Y-%m-%d")}.csv', "w") as f:
+        f = csv.writer(f)
+        f.writerow(["thread_url" , "title", "post_date", "edit_date", "contributor_id", \
+                    "message_text", "moderated", "update_version"])
+
+        users = {}
+
+        
+
+        for thread_url in data:
+            for name in data[thread_url]['contributors']:
+                users[name] = data[thread_url]['contributors'][name]
+
+            for key in data[thread_url]['messages']:
+                for message in data[thread_url]['messages'][key]:
+                    f.writerow([thread_url, data[thread_url]['title'],\
+                    data[thread_url]['post_date'], \
+                    data[thread_url]['edit_date'], \
+                    key, message, data[thread_url]['moderated'], \
+                    data[thread_url]['update_version']])
+
+    with open (os.getcwd() + f'/cache/csv/userdb/users_{datetime.datetime.now().strftime("%Y-%m-%d")}.csv', "w") as f:
+        f = csv.writer(f)
+        f.writerow(["user_name", "user_id", "user_url", "user_join_date"])
+
+        for name in users:
+            f.writerow([name, users[name]['user_id'], users[name]['user_url'], users[name]['member_since']])
+        
+
