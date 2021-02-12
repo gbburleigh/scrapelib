@@ -4,7 +4,7 @@ from selenium.common.exceptions import StaleElementReferenceException
 
 class Crawler:
     def __init__(self, driver, hist, target=None, genesis=None,\
-                max_page_scroll=25):
+                max_page_scroll=5):
         #Inherit objects and instantiate scraper class
         self.driver = driver
         self.logger = logging.getLogger(__name__)

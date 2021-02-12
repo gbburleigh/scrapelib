@@ -61,8 +61,8 @@ class ThreadScraper:
         pages = self.get_page_numbers()
 
         msg_cache = {}
-        if pages > 10:
-            pages = 10
+        # if pages > 10:
+        #     pages = 10
         for pagenum in range(1, pages + 1):
             print(f'Currently on page {pagenum} of {url}')
             if pagenum == 1:
