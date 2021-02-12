@@ -161,20 +161,29 @@ class Driver:
 
     def load_history(self):
         _, _, filenames = next(os.walk(os.getcwd() + '/cache/logs'))
-        filenames.remove('debug.log')
-        try:
-            filenames.remove('geckodriver.log')
-        except:
-            pass
-        newest_file = str(max([datetime.datetime.strptime(x.strip('.json'), '%Y-%m-%d') for x in filenames]).date()) + '.json'
+        if len(filenames) != 0:
+            try:
+                filenames.remove('debug.log')
+            except:
+                pass
+            try:
+                filenames.remove('.DS_Store')
+            except:
+                pass
+            try:
+                filenames.remove('geckodriver.log')
+            except:
+                pass
 
-        try:
-            with open(os.getcwd() + '/cache/logs/' + newest_file, 'r') as f:
-                data = json.load(f)
-                self.hist = data
-        except Exception as e:
-            self.logger.critical('Error while loading history!')
-            print(e)
+            newest_file = str(max([datetime.datetime.strptime(x.strip('.json'), '%Y-%m-%d') for x in filenames]).date()) + '.json'
+
+            try:
+                with open(os.getcwd() + '/cache/logs/' + newest_file, 'r') as f:
+                    data = json.load(f)
+                    self.hist = data
+            except Exception as e:
+                self.logger.critical('Error while loading history!')
+                print(e)
 
 if __name__ == "__main__":
     #Run test functions

@@ -192,11 +192,6 @@ class ThreadScraper:
 
         #input('crafted package with version {}'.format(pkg['update_version']))
 
-        try:
-            pkg = {**pkg, **hist_partition[url]}
-        except:
-            pass
-
         return pkg
 
     def generate_next(self, url, _iter):
