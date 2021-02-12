@@ -158,10 +158,11 @@ class Driver:
             for name in users:
                 f.writerow([name, users[name]['user_id'], users[name]['user_url'], users[name]['member_since'], users[name]['rank']])
 
+        return 
 
     def load_history(self):
         _, _, filenames = next(os.walk(os.getcwd() + '/cache/logs'))
-        print(filenames)
+        #print(filenames)
         try:
             filenames.remove('debug.log')
         except:
@@ -185,6 +186,67 @@ class Driver:
                 self.logger.critical('Error while loading history!')
                 print(e)
 
+    def email_results(self):
+        import smtplib
+        import mimetypes
+        from email.mime.multipart import MIMEMultipart
+        from email import encoders
+        from email.message import Message
+        from email.mime.audio import MIMEAudio
+        from email.mime.base import MIMEBase
+        from email.mime.image import MIMEImage
+        from email.mime.text import MIMEText
+
+        emailfrom = "scrapelib@gmail.com"
+        dsts = ["scrapelib@gmail.com", "hatim.rahman@kellogg.northwestern.edu", \
+            "grahamburleigh2022@u.northwestern.edu"]
+        for dst in dsts:
+            emailto = dst
+            
+            fileToSend = f'./cache/csv/{datetime.datetime.now().strftime("%Y-%m-%d")}.csv'
+            username = "scrapelib"
+            password = "scrapejapes1122!"
+
+            msg = MIMEMultipart()
+            msg["From"] = emailfrom
+            msg["To"] = emailto
+            msg["Subject"] = f'{datetime.datetime.now().strftime("%Y-%m-%d")}.csv'
+            msg.preamble = f'{datetime.datetime.now().strftime("%Y-%m-%d")}.csv'
+
+            ctype, encoding = mimetypes.guess_type(fileToSend)
+            if ctype is None or encoding is not None:
+                ctype = "application/octet-stream"
+
+            maintype, subtype = ctype.split("/", 1)
+
+            if maintype == "text":
+                fp = open(fileToSend)
+                # Note: we should handle calculating the charset
+                attachment = MIMEText(fp.read(), _subtype=subtype)
+                fp.close()
+            elif maintype == "image":
+                fp = open(fileToSend, "rb")
+                attachment = MIMEImage(fp.read(), _subtype=subtype)
+                fp.close()
+            elif maintype == "audio":
+                fp = open(fileToSend, "rb")
+                attachment = MIMEAudio(fp.read(), _subtype=subtype)
+                fp.close()
+            else:
+                fp = open(fileToSend, "rb")
+                attachment = MIMEBase(maintype, subtype)
+                attachment.set_payload(fp.read())
+                fp.close()
+                encoders.encode_base64(attachment)
+            attachment.add_header("Content-Disposition", "attachment", filename=fileToSend)
+            msg.attach(attachment)
+
+            server = smtplib.SMTP("smtp.gmail.com:587")
+            server.starttls()
+            server.login(username,password)
+            server.sendmail(emailfrom, emailto, msg.as_string())
+            server.quit()
+
 if __name__ == "__main__":
     #Run test functions
     d = Driver()
@@ -202,7 +264,8 @@ if __name__ == "__main__":
         except:
             pass
     else:
-        d.write_csv(d.hist)
+        d.email_results()
+        #d.write_csv(d.hist)
     atexit.register(d.close())
     d.close()
 
