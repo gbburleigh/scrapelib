@@ -60,8 +60,8 @@ class ThreadScraper:
         contributors = {}
         pages = self.get_page_numbers()
         start = pages
-        if start > 100:
-            end = start - 100
+        if start > 25:
+            end = start - 25
         else:
             end = 1
         msg_cache = {}
