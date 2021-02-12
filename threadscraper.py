@@ -59,11 +59,16 @@ class ThreadScraper:
             edit_date = 'Unedited'
         contributors = {}
         pages = self.get_page_numbers()
-
+        start = pages
+        if start > 100:
+            end = start - 100
+        else:
+            end = 1
         msg_cache = {}
         # if pages > 10:
         #     pages = 10
-        for pagenum in range(1, pages + 1):
+        
+        for pagenum in reversed(range(start, end + 1)):
             print(f'Currently on page {pagenum} of {url}')
             if pagenum == 1:
                 pass
