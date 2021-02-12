@@ -122,23 +122,23 @@ class Driver:
                         "message_text", "post_datetime", "moderated", "update_version"])
 
             users = {}
+            for category_url in data:
+                for thread_url in data[category_url]:
+                    # if int(data[thread_url]['update_version']) > 1:
+                    #     #TODO: MAKE A TEXT DIFF HERE AND APPEND IT
+                    #     pass                
+                        
+                    for name in data[category_url][thread_url]['contributors']:
+                        users[name] = data[category_url][thread_url]['contributors'][name]
 
-            for thread_url in data:
-                # if int(data[thread_url]['update_version']) > 1:
-                #     #TODO: MAKE A TEXT DIFF HERE AND APPEND IT
-                #     pass                
-                    
-                for name in data[thread_url]['contributors']:
-                    users[name] = data[thread_url]['contributors'][name]
-
-                for key in data[thread_url]['messages']:
-                    for message in data[thread_url]['messages'][key]:
-                        f.writerow([thread_url, data[thread_url]['title'],\
-                        data[thread_url]['post_date'], \
-                        data[thread_url]['edit_date'], \
-                        key, message[1], message[0], \
-                        data[thread_url]['moderated'], \
-                        data[thread_url]['update_version']])
+                    for key in data[category_url][thread_url]['messages']:
+                        for message in data[category_url][thread_url]['messages'][key]:
+                            f.writerow([thread_url, data[thread_url]['title'],\
+                            data[category_url][thread_url]['post_date'], \
+                            data[category_url][thread_url]['edit_date'], \
+                            key, message[1], message[0], \
+                            data[category_url][thread_url]['moderated'], \
+                            data[category_url][thread_url]['update_version']])
 
         with open (os.getcwd() + f'/cache/csv/userdb/users_{datetime.datetime.now().strftime("%Y-%m-%d")}.csv', "w") as f:
             f = csv.writer(f)
