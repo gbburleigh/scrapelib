@@ -119,26 +119,37 @@ class Driver:
         with open(os.getcwd() + f'/cache/csv/{datetime.datetime.now().strftime("%Y-%m-%d")}.csv', "w") as f:
             f = csv.writer(f)
             f.writerow(["thread_url" , "title", "post_date", "edit_date", "contributor_id", \
-                        "message_text", "post_datetime", "moderated", "update_version"])
+                    "contributor_rank", "message_text", "post_version", "post_datetime", \
+                    "post_moderation"])
 
             users = {}
+
             for category_url in data:
                 for thread_url in data[category_url]:
-                    # if int(data[thread_url]['update_version']) > 1:
-                    #     #TODO: MAKE A TEXT DIFF HERE AND APPEND IT
-                    #     pass                
+                    if data[category_url][thread_url]['update_version'] > 1:
+                        #TODO: MAKE A TEXT DIFF HERE AND APPEND IT
+                        pass                
                         
                     for name in data[category_url][thread_url]['contributors']:
                         users[name] = data[category_url][thread_url]['contributors'][name]
 
                     for key in data[category_url][thread_url]['messages']:
-                        for message in data[category_url][thread_url]['messages'][key]:
-                            f.writerow([thread_url, data[category_url][thread_url]['title'],\
-                            data[category_url][thread_url]['post_date'], \
-                            data[category_url][thread_url]['edit_date'], \
-                            key, message[1], message[0], \
-                            data[category_url][thread_url]['moderated'], \
-                            data[category_url][thread_url]['update_version']])
+                        for v in data[category_url][thread_url]['messages'][key]:
+                            for message in data[category_url][thread_url]['messages'][key][v]:
+                                try:
+                                    edited = message[2]
+                                except:
+                                    edited = 'Unedited'
+
+                                for entry in users:
+                                    if users[entry]['user_id'] == key:
+                                        rank = users[entry]['rank']
+
+                                f.writerow([thread_url, data[category_url][thread_url]['title'],\
+                                data[category_url][thread_url]['post_date'], \
+                                data[category_url][thread_url]['edit_date'], \
+                                key, rank, message[1], v, \
+                                message[0], edited])
 
         with open (os.getcwd() + f'/cache/csv/userdb/users_{datetime.datetime.now().strftime("%Y-%m-%d")}.csv', "w") as f:
             f = csv.writer(f)
