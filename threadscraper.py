@@ -18,15 +18,20 @@ class ThreadScraper:
         try:
             hist_partition = self.hist[tar]
             messages = hist_partition[url]['messages']
-            for user, userdata in hist_partition[url]['contributors'].items():
-                self.users[user] = {'user_id': userdata['user_id'], \
-                                    'user_url':userdata['user_url'], \
-                                    'member_since': userdata['member_since'], \
-                                    'rank': userdata['rank']}
         except KeyError:
             hist_partition = None
             messages = {}
-        
+
+        if hist_partition is not None:
+            try:
+                for user, userdata in hist_partition[url]['contributors'].items():
+                    self.users[user] = {'user_id': userdata['user_id'], \
+                                        'user_url':userdata['user_url'], \
+                                        'member_since': userdata['member_since'], \
+                                        'rank': userdata['rank']}
+            except:
+                pass
+
         if hist_partition is not None:
             try:
                 version = hist_partition[url]['update_version']
