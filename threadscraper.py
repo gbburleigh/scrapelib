@@ -68,7 +68,7 @@ class ThreadScraper:
         # if pages > 10:
         #     pages = 10
         
-        for pagenum in reversed(range(start, end + 1)):
+        for pagenum in range(start, end - 1, -1):
             print(f'Currently on page {pagenum} of {url}')
             if pagenum == 1:
                 pass
