@@ -161,20 +161,20 @@ class Driver:
 
     def load_history(self):
         _, _, filenames = next(os.walk(os.getcwd() + '/cache/logs'))
+        print(filenames)
+        try:
+            filenames.remove('debug.log')
+        except:
+            pass
+        try:
+            filenames.remove('.DS_Store')
+        except:
+            pass
+        try:
+            filenames.remove('geckodriver.log')
+        except:
+            pass
         if len(filenames) != 0:
-            try:
-                filenames.remove('debug.log')
-            except:
-                pass
-            try:
-                filenames.remove('.DS_Store')
-            except:
-                pass
-            try:
-                filenames.remove('geckodriver.log')
-            except:
-                pass
-
             newest_file = str(max([datetime.datetime.strptime(x.strip('.json'), '%Y-%m-%d') for x in filenames]).date()) + '.json'
 
             try:
