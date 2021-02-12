@@ -114,7 +114,8 @@ class Driver:
         sys.exit()
 
     def write_csv(self, data):
-        data = json.loads(data)
+        if type(data) != dict:
+            data = json.loads(data)
         with open(os.getcwd() + f'/cache/csv/{datetime.datetime.now().strftime("%Y-%m-%d")}.csv', "w") as f:
             f = csv.writer(f)
             f.writerow(["thread_url" , "title", "post_date", "edit_date", "contributor_id", \
