@@ -181,7 +181,7 @@ if __name__ == "__main__":
         except:
             pass
     else:
-        d.write_csv(self.hist)
+        d.write_csv(d.hist)
     atexit.register(d.close())
     d.close()
 
