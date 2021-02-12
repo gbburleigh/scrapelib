@@ -114,7 +114,6 @@ class Driver:
         sys.exit()
 
     def write_csv(self, data):
-        input(data)
         data = json.loads(data)
         with open(os.getcwd() + f'/cache/csv/{datetime.datetime.now().strftime("%Y-%m-%d")}.csv', "w") as f:
             f = csv.writer(f)
@@ -168,18 +167,21 @@ class Driver:
 if __name__ == "__main__":
     #Run test functions
     d = Driver()
-    try:
-        data = d.run()
-        d.write_csv(data)
-    except KeyboardInterrupt:
-        d.close()
-        os.system('deactivate')
-    try:
-        if '-s' in sys.argv:
-            while True:
-                schedule.run_pending()
-    except:
-        pass
+    if '-c' not in sys.argv:
+        try:
+            data = d.run()
+            d.write_csv(data)
+        except KeyboardInterrupt:
+            d.close()
+            os.system('deactivate')
+        try:
+            if '-s' in sys.argv:
+                while True:
+                    schedule.run_pending()
+        except:
+            pass
+    else:
+        d.write_csv(self.hist)
     atexit.register(d.close())
     d.close()
 
