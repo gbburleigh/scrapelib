@@ -73,6 +73,7 @@ class Driver:
             self.logger.info(f'Got genesis URLS: {self.genesis}')
         except Exception as e:
             self.logger.critical('Error loading genesis data!')
+            self.genesis = None
             print(e)
         
     def run(self):
