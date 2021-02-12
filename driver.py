@@ -133,7 +133,7 @@ class Driver:
 
                     for key in data[category_url][thread_url]['messages']:
                         for message in data[category_url][thread_url]['messages'][key]:
-                            f.writerow([thread_url, data[thread_url]['title'],\
+                            f.writerow([thread_url, data[category_url][thread_url]['title'],\
                             data[category_url][thread_url]['post_date'], \
                             data[category_url][thread_url]['edit_date'], \
                             key, message[1], message[0], \
