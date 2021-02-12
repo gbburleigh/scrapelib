@@ -84,8 +84,11 @@ class Crawler:
                 self.logger.info(f'Parsing link {url}')
                 #If we've reached genesis, we want to exit after parsing this page
                 if self.genesis is not None:
-                    if url == self.genesis[tar]:
-                        self.reached_genesis = True
+                    try:
+                        if url == self.genesis[tar]:
+                            self.reached_genesis = True
+                    except KeyError:
+                        pass
 
                 #Fetch page
                 self.driver.get(url)
