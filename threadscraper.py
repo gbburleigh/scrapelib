@@ -154,7 +154,7 @@ class ThreadScraper:
             if version > 1:
                 for v in range(1, version):
                     for user_id in hist_partition[url]['messages']:
-                        #input(hist_partition[url]['messages'][user_id])
+                        input(hist_partition[url]['messages'][user_id])
                         hist_tups = [x for x in hist_partition[url]['messages'][user_id][str(v)]]
                         for msg_tup in hist_tups:
                             try:
@@ -170,14 +170,14 @@ class ThreadScraper:
                                         messages[user_id][str(v)].append((msg_tup[0], '!!DELETED!!', '!!DELETED!!'))
                                     except KeyError:
                                         messages[user_id] = {}
-                                        messages[user_id][str(v)] = [(msg_tup[0], '!!DELETED!!', '!!DELETED')]
+                                        messages[user_id][str(v)] = [(msg_tup[0], '!!DELETED!!', '!!DELETED!!')]
                             except KeyError:
                                 #We didn't find the user from history in the users we encountered, so add a deleted entry
                                 try:
-                                    messages[user_id][str(v)].append((msg_tup[0], '!!DELETED!!'))
+                                    messages[user_id][str(v)].append((msg_tup[0], '!!DELETED!!', '!!DELETED!!'))
                                 except KeyError:
                                     messages[user_id] = {}
-                                    messages[user_id][str(v)] = [(msg_tup[0], '!!DELETED!!')]
+                                    messages[user_id][str(v)] = [(msg_tup[0], '!!DELETED!!', '!!DELETED!!')]
         pkg = {}
         pkg['pkg_creation_stamp'] = str(datetime.datetime.now())
         pkg['title'] = title

@@ -16,7 +16,7 @@ class Driver:
         #Configure logger
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.DEBUG)
-        self.fh = logging.FileHandler(os.getcwd() + '/cache/logs/debug.log', 'w+')
+        self.fh = logging.FileHandler(os.getcwd() + '/cache/sys/debug.log', 'w+')
         self.fh.setLevel(logging.DEBUG)
         self.ch = logging.StreamHandler(sys.stdout)
         self.ch.setLevel(logging.INFO)
@@ -38,7 +38,7 @@ class Driver:
             options = Options()
             options.add_argument('--headless')
             self.webdriver = webdriver.Firefox(executable_path=GeckoDriverManager().install(), \
-                firefox_options=options, log_path=os.getcwd()+ '/cache/logs/geckodriver.log')
+                firefox_options=options, log_path=os.getcwd()+ '/cache/sys/geckodriver.log')
         else:
             from selenium.webdriver.chrome.options import Options
             from webdriver_manager import chrome
@@ -254,6 +254,7 @@ if __name__ == "__main__":
         try:
             data = d.run()
             d.write_csv(data)
+            d.email_results()
         except KeyboardInterrupt:
             d.close()
             os.system('deactivate')
