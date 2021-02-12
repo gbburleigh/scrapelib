@@ -8,7 +8,7 @@ if sys.prefix == sys.base_prefix:
 
 import time, json, logging, schedule, datetime, atexit, csv
 from selenium import webdriver
-from crawler import ForumCrawler
+from crawler import Crawler
 
 class Driver:
     def __init__(self):
@@ -25,6 +25,10 @@ class Driver:
         self.ch.setFormatter(self.formatter)
         self.logger.addHandler(self.ch)
         self.logger.addHandler(self.fh)
+        self.hist={}
+        self.load_history()
+        self.genesis = {}
+        #self.read_genesis()
 
         #Configure webdriver
         if '-f' in sys.argv:
@@ -46,6 +50,30 @@ class Driver:
 
         #Configure scheduling
         schedule.every().day.at('00:00').do(self.run)
+
+    def read_genesis(self):
+        #Right now this is really inefficient. Should only be used at init time
+        _, _, filenames = next(os.walk(os.getcwd() + '/cache/logs'))
+        filenames.remove('debug.log')
+        newest_file = str(max([datetime.datetime.strptime(x.strip('.json'), '%Y-%m-%d') for x in filenames]).date()) + '.json'
+        print(f'reading {newest_file}')
+        try:
+            with open(os.getcwd() + '/cache/logs/' + newest_file, 'r') as f:
+                data = json.load(f)
+                for url in data.keys():
+                    print(data[url])
+                    li = []
+                    for link, postdata in data[url].items():
+                        print(link, postdata['pkg_creation_stamp'])
+                        li.append([postdata['pkg_creation_stamp'], link])
+
+                    li = sorted(li, key=lambda x: x[0])
+                    self.genesis[url] = li[0]
+
+            self.logger.info(f'Got genesis URLS: {self.genesis}')
+        except Exception as e:
+            self.logger.critical('Error loading genesis data!')
+            print(e)
         
     def run(self):
 
@@ -58,7 +86,7 @@ class Driver:
         self.logger.info('Beginning scan at {}'.format(socket.gethostname()))
 
         #Instantiate crawler
-        crawler = ForumCrawler(self.webdriver, target='upwork')
+        crawler = Crawler(self.webdriver, self.hist, target='upwork', genesis=self.genesis)
 
         #Fetch crawler data
         data = crawler.crawl()
@@ -76,20 +104,47 @@ class Driver:
         with open(os.getcwd() + '/cache/logs/{}.json'.format(now), 'w') as f:
             f.write(data)
         self.logger.warning('Finished scan.')
+
+        return data
    
     def close(self):
         #Cleans up webdriver processes and exits program
         self.webdriver.quit()
         sys.exit()
 
-    def write_csv(self, pkg):
-        import pandas
-        try:
-            with open(os.getcwd() + f'/cache/csv/{datetime.datetime.now().strftime("%Y-%m-%d")}.csv') as f:
-                df = pandas.read_json(json.load(pkg))
-                f.write(df.to_csv())
-        except:
-            self.logger.critical('Errored while writing to csv!')
+    def write_csv(self, data):
+        input(data)
+        data = json.loads(data)
+        with open(os.getcwd() + f'/cache/csv/{datetime.datetime.now().strftime("%Y-%m-%d")}.csv', "w") as f:
+            f = csv.writer(f)
+            f.writerow(["thread_url" , "title", "post_date", "edit_date", "contributor_id", \
+                        "message_text", "post_datetime", "moderated", "update_version"])
+
+            users = {}
+
+            for thread_url in data:
+                # if int(data[thread_url]['update_version']) > 1:
+                #     #TODO: MAKE A TEXT DIFF HERE AND APPEND IT
+                #     pass                
+                    
+                for name in data[thread_url]['contributors']:
+                    users[name] = data[thread_url]['contributors'][name]
+
+                for key in data[thread_url]['messages']:
+                    for message in data[thread_url]['messages'][key]:
+                        f.writerow([thread_url, data[thread_url]['title'],\
+                        data[thread_url]['post_date'], \
+                        data[thread_url]['edit_date'], \
+                        key, message[1], message[0], \
+                        data[thread_url]['moderated'], \
+                        data[thread_url]['update_version']])
+
+        with open (os.getcwd() + f'/cache/csv/userdb/users_{datetime.datetime.now().strftime("%Y-%m-%d")}.csv', "w") as f:
+            f = csv.writer(f)
+            f.writerow(["user_name", "user_id", "user_url", "user_join_date", "user_rank"])
+
+            for name in users:
+                f.writerow([name, users[name]['user_id'], users[name]['user_url'], users[name]['member_since'], users[name]['rank']])
 
 
     def load_history(self):
@@ -98,30 +153,19 @@ class Driver:
         newest_file = str(max([datetime.datetime.strptime(x.strip('.json'), '%Y-%m-%d') for x in filenames]).date()) + '.json'
 
         try:
-            with open(os.getcwd() + '/cache/logs/' + newest_file, 'r'):
+            with open(os.getcwd() + '/cache/logs/' + newest_file, 'r') as f:
                 data = json.load(f)
                 self.hist = data
-        except:
+        except Exception as e:
             self.logger.critical('Error while loading history!')
-
-    def flattenjson(b, delim):
-        #Referenced from https://stackoverflow.com/questions/1871524/how-can-i-convert-json-to-csv
-        val = {}
-        for i in b.keys():
-            if isinstance(b[i], dict):
-                get = flattenjson(b[i], delim)
-                for j in get.keys():
-                    val[i + delim + j] = get[j]
-            else:
-                val[i] = b[i]
-                
-        return val
+            print(e)
 
 if __name__ == "__main__":
     #Run test functions
     d = Driver()
     try:
-        d.run()
+        data = d.run()
+        d.write_csv(data)
     except KeyboardInterrupt:
         d.close()
         os.system('deactivate')

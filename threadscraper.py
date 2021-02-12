@@ -14,13 +14,28 @@ class ThreadScraper:
         """Main thread scraper function. Uses BeautifulSoup to parse HTML based on class tags and 
         compiles relevant data/metadata in dict format. Detects edit status and moderation status."""
         self.soup = BeautifulSoup(html, 'html.parser')
-        time.sleep(2)
         
         try:
             hist_partition = self.hist[tar]
-            version = hist_partition[url]['update_version'] 
-        except KeyError or ValueError:
+            messages = hist_partition[url]['messages']
+            for user, userdata in hist_partition[url]['contributors'].items():
+                self.users[user] = {'user_id': userdata['user_id'], \
+                                    'user_url':userdata['user_url'], \
+                                    'member_since': userdata['member_since'], \
+                                    'rank': userdata['rank']}
+        except KeyError:
+            hist_partition = None
+            messages = {}
+        
+        if hist_partition is not None:
+            try:
+                version = hist_partition[url]['update_version']
+            except:
+                version = 0
+        else:
             version = 0
+        
+        version += 1
 
         try:
             title = self.soup.find('h1', class_='lia-message-subject-banner lia-component-forums-widget-message-subject-banner')\
@@ -38,11 +53,11 @@ class ThreadScraper:
         except AttributeError:
             edit_date = 'Unedited'
         contributors = {}
-        messages = {}
-        
         pages = self.get_page_numbers()
 
-        edit_status = False
+        msg_cache = {}
+        if pages > 10:
+            pages = 10
         for pagenum in range(1, pages + 1):
             print(f'Currently on page {pagenum} of {url}')
             if pagenum == 1:
@@ -56,7 +71,6 @@ class ThreadScraper:
                 op = self.soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-topic')
             except:
                 op = None
-            
             try:
                 unread = self.soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-reply')
             except:
@@ -68,16 +82,20 @@ class ThreadScraper:
 
             msgs = op + unread + solved
             for msg in msgs:
+                edit_status = 'Unedited'
                 _url = 'https://community.upwork.com' + \
                     msg.find('a', class_='lia-link-navigation lia-page-link lia-user-name-link user_name', href=True)['href']
                 name = msg.find('a', class_='lia-link-navigation lia-page-link lia-user-name-link user_name').find('span').text
                 member_since = msg.find('span', class_='custom-upwork-member-since').text.split(': ')[1]
-                if name not in self.users:
+                rank = msg.find('div', class_='lia-message-author-rank lia-component-author-rank lia-component-message-view-widget-author-rank')\
+                    .text.replace(' ', '').strip()
+                timestamp = msg.find('span', class_='DateTime lia-message-posted-on lia-component-common-widget-date')\
+                            .find('span', class_='message_post_text').text
+                if name not in self.users.keys():
                     user_id = uuid.uuid4().hex[:8]
-                    self.users[name] = {'user_id': user_id, 'user_url': _url, 'member_since': member_since}
+                    self.users[name] = {'user_id': user_id, 'user_url': _url, 'member_since': member_since, 'rank': rank}
                 else:
                     user_id = self.users[name]['user_id']
-                #contributors[name] = [_url, member_since]
                 body = msg.find('div', class_='lia-message-body-content').find_all('p')
                 post = ''
                 for p in body:
@@ -89,24 +107,85 @@ class ThreadScraper:
                     try:
                         edited = str(p.find('span').text)
                         if edited.find('**Edited for') != -1:
-                            edit_status = True
+                            edit_status = '**Edited for'
+                        elif edited.find('**edited for') != -1:
+                            edit_status = '**edited for'
                     except:
                         pass
-                if name not in messages.keys():
-                    messages[user_id] = [post]
-                else:
-                    messages[user_id].append(post)
-                
+                if post != '':
+                    if user_id not in messages.keys() and hist_partition is not None:
+                        try:
+                            messages[user_id] = hist_partition[url]['messages'][user_id]
+                            messages[user_id][str(version)] = [(timestamp, post, edit_status)]
+                        except KeyError:
+                            messages[user_id] = {}
+                            messages[user_id][str(version)] = [(timestamp, post, edit_status)]
+                    else:
+                        try:
+                            messages[user_id][str(version)].append((timestamp, post, edit_status))
+                        except KeyError:
+                            messages[user_id] = {}
+                            messages[user_id][str(version)] = [(timestamp, post, edit_status)]
 
+                    if user_id not in msg_cache.keys():
+                        msg_cache[user_id] = [post]
+                    else:
+                        msg_cache[user_id].append(post)
+
+                #print(hist_partition[url]['messages'][user_id].keys())
+
+                # try:
+                #     messages[user_id] = {**hist_partition[url]['messages'][user_id],\
+                #                         **messages[user_id]}
+                # except KeyError as e:
+                #     print(e)
+
+        if hist_partition is not None:
+            if version > 1:
+                for v in range(1, version):
+                    for user_id in hist_partition[url]['messages']:
+                        #input(hist_partition[url]['messages'][user_id])
+                        hist_tups = [x for x in hist_partition[url]['messages'][user_id][str(v)]]
+                        for msg_tup in hist_tups:
+                            try:
+                                #Check if the message is still in the list of messages we encountered for that ID
+                                if msg_tup[1] not in msg_cache[user_id]:
+                                    #Message wasn't found, add a deleted entry with the timestamp
+                                    try:
+                                        if user_id not in hist_partition[url]['messages'].keys():
+                                            messages[user_id] = {}
+                                            messages[user_id][str(version)] = []
+                                        else:
+                                            messages[user_id] = hist_partition[url]['messages'][user_id]
+                                        messages[user_id][str(v)].append((msg_tup[0], '!!DELETED!!', '!!DELETED!!'))
+                                    except KeyError:
+                                        messages[user_id] = {}
+                                        messages[user_id][str(v)] = [(msg_tup[0], '!!DELETED!!', '!!DELETED')]
+                            except KeyError:
+                                #We didn't find the user from history in the users we encountered, so add a deleted entry
+                                try:
+                                    messages[user_id][str(v)].append((msg_tup[0], '!!DELETED!!'))
+                                except KeyError:
+                                    messages[user_id] = {}
+                                    messages[user_id][str(v)] = [(msg_tup[0], '!!DELETED!!')]
         pkg = {}
         pkg['pkg_creation_stamp'] = str(datetime.datetime.now())
         pkg['title'] = title
         pkg['post_date'] = post_date
         pkg['edit_date'] = edit_date
         pkg['contributors'] = self.users
-        pkg['messages'] = messages
-        pkg['moderated'] = edit_status
-        pkg['update_version'] = version + 1
+        if hist_partition is not None:
+            pkg['messages'] = {**hist_partition[url]['messages'], **messages}
+        else:
+            pkg['messages'] = messages
+        pkg['update_version'] = version
+
+        #input('crafted package with version {}'.format(pkg['update_version']))
+
+        try:
+            pkg = {**pkg, **hist_partition[url]}
+        except:
+            pass
 
         return pkg
 
