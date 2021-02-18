@@ -1,14 +1,20 @@
-import sys, os, time, json, logging, datetime, traceback, inspect, uuid
+import sys, os, time, json, logging, datetime, traceback, inspect, uuid, hashlib
 from bs4 import BeautifulSoup
 
 class ThreadScraper:
-    def __init__(self, driver, hist, target=None):
+    def __init__(self, driver, hist, target=None, debug=False):
         #Instantiate soup object and inherit logger.
         self.soup = None
         self.driver = driver
         self.hist = hist
         self.logger = logging.getLogger(__name__)
         self.users = {}
+        self.stats = {}
+        self.stats['deletions'] = 0
+        self.stats['modifications'] = 0
+        self.stats['user_mods'] = {}
+        self.stats['user_deletes'] = {}
+        self.debug_mode = debug
 
     def make_soup(self, html, url, tar=None):
         """Main thread scraper function. Uses BeautifulSoup to parse HTML based on class tags and 
@@ -17,9 +23,12 @@ class ThreadScraper:
         
         try:
             hist_partition = self.hist[tar]
-            messages = hist_partition[url]['messages']
         except KeyError:
             hist_partition = None
+
+        try:
+            messages = hist_partition[url]['messages'].copy()
+        except:
             messages = {}
 
         if hist_partition is not None:
@@ -39,9 +48,7 @@ class ThreadScraper:
                 version = 0
         else:
             version = 0
-        
         version += 1
-
         try:
             title = self.soup.find('h1', class_='lia-message-subject-banner lia-component-forums-widget-message-subject-banner')\
                 .text.replace('\n\t', '').replace('\n', '').replace('\u00a0', '')
@@ -52,6 +59,21 @@ class ThreadScraper:
                 .find('span', class_='message_post_text').text
         except:
             self.logger.warning(traceback.format_exc())
+
+        # d = str(post_date)
+        # try:
+        #     d = d.split(' AM')[0]
+        # except:
+        #     pass
+        # try:
+        #     d = d.split(' PM')[0]
+        # except:
+        #     pass
+        # date_format = "%b %d, %Y %H:%M:%S"
+        # dt = datetime.datetime.strptime(d, date_format)
+        # input((datetime.datetime.now()-dt).days)
+        # if (datetime.datetime.now()-dt).days > 7:
+        #     return None
         try:
             edit_date = self.soup.find('span', class_='DateTime lia-message-edited-on lia-component-common-widget-date')\
                 .find('span', class_='message_post_text').text
@@ -67,8 +89,10 @@ class ThreadScraper:
         msg_cache = {}
         # if pages > 10:
         #     pages = 10
-        
+        now = datetime.datetime.now()
+        debugli = []
         for pagenum in range(start, end - 1, -1):
+            self.logger.info(f'Currently on page {pagenum} of {url}')
             print(f'Currently on page {pagenum} of {url}')
             if pagenum == 1:
                 pass
@@ -90,6 +114,7 @@ class ThreadScraper:
             except:
                 solved = None
 
+            expired = False
             msgs = op + unread + solved
             for msg in msgs:
                 edit_status = 'Unedited'
@@ -101,11 +126,28 @@ class ThreadScraper:
                     .text.replace(' ', '').strip()
                 timestamp = msg.find('span', class_='DateTime lia-message-posted-on lia-component-common-widget-date')\
                             .find('span', class_='message_post_text').text
+                postdate = str(timestamp)
+                try:
+                    postdate = postdate.split(' AM')[0]
+                except:
+                    pass
+                try:
+                    postdate = postdate.split(' PM')[0]
+                except:
+                    pass
+                date_format = "%b %d, %Y %H:%M:%S"
+                dt = datetime.datetime.strptime(postdate, date_format)
+                if (now-dt).days > 7:
+                    expired = True
+                    break
                 if name not in self.users.keys():
                     user_id = uuid.uuid4().hex[:8]
                     self.users[name] = {'user_id': user_id, 'user_url': _url, 'member_since': member_since, 'rank': rank}
                 else:
                     user_id = self.users[name]['user_id']
+
+                if self.debug_mode is True:
+                    debugli.append(user_id)
                 body = msg.find('div', class_='lia-message-body-content').find_all('p')
                 post = ''
                 for p in body:
@@ -122,75 +164,97 @@ class ThreadScraper:
                             edit_status = '**edited for'
                     except:
                         pass
+
+                if edit_status != 'Unedited':
+                    self.stats['modifications'] += 1
+                    if user_id in self.stats['user_mods'].keys():
+                        self.stats['user_mods'][user_id] += 1
+                    else:
+                        self.stats['user_mods'][user_id] = 1
+
                 if post != '':
-                    if user_id not in messages.keys() and hist_partition is not None:
-                        try:
-                            messages[user_id] = hist_partition[url]['messages'][user_id]
-                            messages[user_id][str(version)] = [(timestamp, post, edit_status)]
-                        except KeyError:
-                            messages[user_id] = {}
+                    mid = int(hashlib.sha1(post.encode("utf-8")).hexdigest(), 16) % (10 ** 8)
+                    if user_id in messages.keys():
+                        if str(version) in messages[user_id].keys():
+                            messages[user_id][str(version)].append((timestamp, post, edit_status))
+                        else:
                             messages[user_id][str(version)] = [(timestamp, post, edit_status)]
                     else:
-                        try:
-                            messages[user_id][str(version)].append((timestamp, post, edit_status))
-                        except KeyError:
-                            messages[user_id] = {}
-                            messages[user_id][str(version)] = [(timestamp, post, edit_status)]
+                        messages[user_id] = {}
+                        messages[user_id][str(version)] = [(timestamp, post, edit_status)]
 
                     if user_id not in msg_cache.keys():
                         msg_cache[user_id] = [post]
                     else:
                         msg_cache[user_id].append(post)
 
-                #print(hist_partition[url]['messages'][user_id].keys())
+                if version > 1:
+                    for key in range(1, version):
+                        try:
+                            messages[user_id][str(key)].update(hist_partition[url]['messages'][user_id][str(key)])
+                        except:
+                            if user_id in hist_partition[url]['messages'].keys() and \
+                            str(key) in hist_partition[url]['messages'][user_id].keys():
+                                old = hist_partition[url]['messages'][user_id][str(key)]
+                                messages[user_id][str(key)] = old.copy()
 
-                # try:
-                #     messages[user_id] = {**hist_partition[url]['messages'][user_id],\
-                #                         **messages[user_id]}
-                # except KeyError as e:
-                #     print(e)
+            if expired is True:
+                break
 
-        if hist_partition is not None:
-            if version > 1:
-                for v in range(1, version):
-                    for user_id in hist_partition[url]['messages']:
-                        input(hist_partition[url]['messages'][user_id])
-                        hist_tups = [x for x in hist_partition[url]['messages'][user_id][str(v)]]
-                        for msg_tup in hist_tups:
-                            try:
-                                #Check if the message is still in the list of messages we encountered for that ID
-                                if msg_tup[1] not in msg_cache[user_id]:
-                                    #Message wasn't found, add a deleted entry with the timestamp
-                                    try:
-                                        if user_id not in hist_partition[url]['messages'].keys():
-                                            messages[user_id] = {}
-                                            messages[user_id][str(version)] = []
-                                        else:
-                                            messages[user_id] = hist_partition[url]['messages'][user_id]
-                                        messages[user_id][str(v)].append((msg_tup[0], '!!DELETED!!', '!!DELETED!!'))
-                                    except KeyError:
-                                        messages[user_id] = {}
-                                        messages[user_id][str(v)] = [(msg_tup[0], '!!DELETED!!', '!!DELETED!!')]
-                            except KeyError:
-                                #We didn't find the user from history in the users we encountered, so add a deleted entry
-                                try:
-                                    messages[user_id][str(v)].append((msg_tup[0], '!!DELETED!!', '!!DELETED!!'))
-                                except KeyError:
-                                    messages[user_id] = {}
-                                    messages[user_id][str(v)] = [(msg_tup[0], '!!DELETED!!', '!!DELETED!!')]
+        if self.debug_mode is True:
+            import random
+            try:
+                choice = random.choice(debugli)
+                del messages[choice]
+                print(f'Removed entry w/ key {choice}')
+            except:
+                pass
+            
+        if version > 1 and hist_partition is not None:
+            for user_id in hist_partition[url]['messages'].keys():
+                for v in hist_partition[url]['messages'][user_id].keys():
+                    hist_tups = [x for x in hist_partition[url]['messages'][user_id][v]]
+                    for tup in hist_tups:
+                        timestamp = tup[0]
+                        msgpost = tup[1]
+                        edit_status = tup[2]
+                        if user_id in messages.keys() and str(version) in messages[user_id].keys():
+                            new_tups = [x for x in messages[user_id][str(version)]]
+                            obj = []
+                            for tup_ in new_tups:
+                                obj.append(tup[0])
+                            if timestamp not in obj:
+                                self.stats['deletions'] += 1
+                                if user_id in self.stats['user_deletes'].keys():
+                                    self.stats['user_deletes'][user_id] += 1
+                                else:
+                                    self.stats['user_deletes'][user_id] = 1
+                                messages[user_id][str(version)].append((timestamp, '<--Deleted-->', '<--Deleted-->'))
+                        else:
+                            if user_id in messages.keys() and str(version) in messages[user_id].keys():
+                                self.stats['deletions'] += 1
+                                if user_id in self.stats['user_deletes'].keys():
+                                    self.stats['user_deletes'][user_id] += 1
+                                else:
+                                    self.stats['user_deletes'][user_id] = 1
+                                messages[user_id][str(version)].append((timestamp, '<--Deleted-->', '<--Deleted-->'))
+                            else:
+                                self.stats['deletions'] += 1
+                                if user_id in self.stats['user_deletes'].keys():
+                                    self.stats['user_deletes'][user_id] += 1
+                                else:
+                                    self.stats['user_deletes'][user_id] = 1
+                                messages[user_id] = {}
+                                messages[user_id][str(version)] = [(timestamp, '<--Deleted-->', '<--Deleted-->')]
+
         pkg = {}
         pkg['pkg_creation_stamp'] = str(datetime.datetime.now())
         pkg['title'] = title
         pkg['post_date'] = post_date
         pkg['edit_date'] = edit_date
         pkg['contributors'] = self.users
-        if hist_partition is not None:
-            pkg['messages'] = {**hist_partition[url]['messages'], **messages}
-        else:
-            pkg['messages'] = messages
+        pkg['messages'] = messages
         pkg['update_version'] = version
-
-        #input('crafted package with version {}'.format(pkg['update_version']))
 
         return pkg
 

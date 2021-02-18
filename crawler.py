@@ -4,7 +4,7 @@ from selenium.common.exceptions import StaleElementReferenceException
 
 class Crawler:
     def __init__(self, driver, hist, target=None, genesis=None,\
-                max_page_scroll=5):
+                max_page_scroll=5, debug=False):
         #Inherit objects and instantiate scraper class
         self.driver = driver
         self.logger = logging.getLogger(__name__)
@@ -16,14 +16,16 @@ class Crawler:
         self.hist = hist
         self.reached_genesis = False
         self.skipped = ['https://community.upwork.com/t5/Announcements/Welcome-to-the-Upwork-Community/td-p/1']
-        self.scraper = ThreadScraper(self.driver, self.hist)
+        self.scraper = ThreadScraper(self.driver, self.hist, debug=debug)
+        print(f'Debug mode ={debug}')
 
         #Get targets
         if target is None and '-f' not in sys.argv:
             raise FileNotFoundError
         if target == 'upwork':
             self.targets = ['https://community.upwork.com/t5/Freelancers/bd-p/freelancers',\
-                            'https://community.upwork.com/t5/Announcements/bd-p/news']
+                            #'https://community.upwork.com/t5/Announcements/bd-p/news',\
+                            'https://community.upwork.com/t5/Clients/bd-p/clients']
 
         if '-f' not in sys.argv:
             for tar in self.targets:
@@ -94,11 +96,13 @@ class Crawler:
                 self.driver.get(url)
                 time.sleep(3)
 
-                #Parse threads and send to subpackage
+                res = self.scraper.make_soup(self.driver.page_source, url, tar)
+                #if res is not None:
+                    #Parse threads and send to subpackage
                 try:
-                    pkg[url].update(self.scraper.make_soup(self.driver.page_source, url, tar))
+                    pkg[url].update(res)
                 except KeyError:
-                    pkg[url] = self.scraper.make_soup(self.driver.page_source, url, tar)
+                    pkg[url] = res
 
             #We've hit the last post, let's exit    
             if self.reached_genesis is True:

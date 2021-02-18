@@ -87,7 +87,12 @@ class Driver:
         self.logger.info('Beginning scan at {}'.format(socket.gethostname()))
 
         #Instantiate crawler
-        crawler = Crawler(self.webdriver, self.hist, target='upwork', genesis=self.genesis)
+        if '-d' in sys.argv:
+            crawler = Crawler(self.webdriver, self.hist, target='upwork', \
+                genesis=self.genesis, debug=True)
+        else:
+            crawler = Crawler(self.webdriver, self.hist, target='upwork', \
+                genesis=self.genesis)
 
         #Fetch crawler data
         data = crawler.crawl()
@@ -114,43 +119,74 @@ class Driver:
         sys.exit()
 
     def write_csv(self, data):
+        """Writes json data to csv file in cache"""
+        
+        #Ensure data is in json/dict format
         if type(data) != dict:
             data = json.loads(data)
+        
+        #Open file handler
         with open(os.getcwd() + f'/cache/csv/{datetime.datetime.now().strftime("%Y-%m-%d")}.csv', "w") as f:
+            #Create csv writer
             f = csv.writer(f)
-            f.writerow(["thread_url" , "title", "post_date", "edit_date", "contributor_id", \
+            
+            #Create csv header
+            f.writerow(["title", "post_date", "edit_date", "contributor_id", \
                     "contributor_rank", "message_text", "post_version", "post_datetime", \
                     "post_moderation"])
 
+            #Userdb dict
             users = {}
 
+            #For each category URL
             for category_url in data:
+                #For each thread scraped in that category
                 for thread_url in data[category_url]:
-                    if data[category_url][thread_url]['update_version'] > 1:
-                        #TODO: MAKE A TEXT DIFF HERE AND APPEND IT
-                        pass                
-                        
+                    #Add the entry to our userdb
                     for name in data[category_url][thread_url]['contributors']:
                         users[name] = data[category_url][thread_url]['contributors'][name]
 
+                    #For each user in the cached messages
                     for key in data[category_url][thread_url]['messages']:
+                        #For each version found of those messages
+                        li = []
                         for v in data[category_url][thread_url]['messages'][key]:
-                            for message in data[category_url][thread_url]['messages'][key][v]:
+                            li.append(int(v))
+                        latest = max(li)
+                        for message in data[category_url][thread_url]['messages'][key][str(latest)]:
+                            #Try to pull edited status
+                            try:
+                                edited = message[2]
+                            except:
+                                edited = 'Unedited'
+
+                            #Pull the users rank
+                            for entry in users:
+                                if users[entry]['user_id'] == key:
+                                    rank = users[entry]['rank']
+
+                            if message[1] == '<--Deleted-->':
                                 try:
-                                    edited = message[2]
+                                    msgs = data[category_url][thread_url]['messages'][key][str(latest-1)]
+                                    for msg in msgs:
+                                        if msg[0] == message[0]:
+                                            f.writerow([data[category_url][thread_url]['title'],\
+                                            data[category_url][thread_url]['post_date'], \
+                                            data[category_url][thread_url]['edit_date'], \
+                                            key, rank, msg[1], latest-1, \
+                                            msg[0], edited])
+                                            break
                                 except:
-                                    edited = 'Unedited'
+                                    pass
 
-                                for entry in users:
-                                    if users[entry]['user_id'] == key:
-                                        rank = users[entry]['rank']
+                            #Write row to csv
+                            f.writerow([data[category_url][thread_url]['title'],\
+                            data[category_url][thread_url]['post_date'], \
+                            data[category_url][thread_url]['edit_date'], \
+                            key, rank, message[1], latest, \
+                            message[0], edited])
 
-                                f.writerow([thread_url, data[category_url][thread_url]['title'],\
-                                data[category_url][thread_url]['post_date'], \
-                                data[category_url][thread_url]['edit_date'], \
-                                key, rank, message[1], v, \
-                                message[0], edited])
-
+        #File handler for Userdb file
         with open (os.getcwd() + f'/cache/csv/userdb/users_{datetime.datetime.now().strftime("%Y-%m-%d")}.csv', "w") as f:
             f = csv.writer(f)
             f.writerow(["user_name", "user_id", "user_url", "user_join_date", "user_rank"])
@@ -158,11 +194,13 @@ class Driver:
             for name in users:
                 f.writerow([name, users[name]['user_id'], users[name]['user_url'], users[name]['member_since'], users[name]['rank']])
 
-        return 
-
     def load_history(self):
+        """Main loading function for pulling json data from cache."""
+
+        #Get filenames in log dir
         _, _, filenames = next(os.walk(os.getcwd() + '/cache/logs'))
-        #print(filenames)
+        
+        #Cleanup for irrelevant files
         try:
             filenames.remove('debug.log')
         except:
@@ -175,10 +213,13 @@ class Driver:
             filenames.remove('geckodriver.log')
         except:
             pass
+
+        #Try and pull the newest file
         if len(filenames) != 0:
             newest_file = str(max([datetime.datetime.strptime(x.strip('.json'), '%Y-%m-%d') for x in filenames]).date()) + '.json'
 
             try:
+                #Open the newest file and read the data to history cache
                 with open(os.getcwd() + '/cache/logs/' + newest_file, 'r') as f:
                     data = json.load(f)
                     self.hist = data
@@ -187,6 +228,9 @@ class Driver:
                 print(e)
 
     def email_results(self):
+        """Emails csv results to designated addresses. Consider pulling addresses to driver class member
+        for portability."""
+
         import smtplib
         import mimetypes
         from email.mime.multipart import MIMEMultipart
@@ -197,16 +241,21 @@ class Driver:
         from email.mime.image import MIMEImage
         from email.mime.text import MIMEText
 
+        #Declare relvant addresses
         emailfrom = "scrapelib@gmail.com"
-        dsts = ["scrapelib@gmail.com", "hatim.rahman@kellogg.northwestern.edu", \
-            "grahamburleigh2022@u.northwestern.edu"]
+        dsts = ["scrapelib@gmail.com"]#, \
+            #"hatim.rahman@kellogg.northwestern.edu", \
+            #"grahamburleigh2022@u.northwestern.edu"]
+
+        #For each specified destination 
         for dst in dsts:
+            #Get our credentials and data ready
             emailto = dst
-            
             fileToSend = f'./cache/csv/{datetime.datetime.now().strftime("%Y-%m-%d")}.csv'
             username = "scrapelib"
             password = "scrapejapes1122!"
 
+            #Prepare message package
             msg = MIMEMultipart()
             msg["From"] = emailfrom
             msg["To"] = emailto
@@ -221,7 +270,6 @@ class Driver:
 
             if maintype == "text":
                 fp = open(fileToSend)
-                # Note: we should handle calculating the charset
                 attachment = MIMEText(fp.read(), _subtype=subtype)
                 fp.close()
             elif maintype == "image":
@@ -241,6 +289,7 @@ class Driver:
             attachment.add_header("Content-Disposition", "attachment", filename=fileToSend)
             msg.attach(attachment)
 
+            #Send package
             server = smtplib.SMTP("smtp.gmail.com:587")
             server.starttls()
             server.login(username,password)
@@ -250,23 +299,23 @@ class Driver:
 if __name__ == "__main__":
     #Run test functions
     d = Driver()
-    if '-c' not in sys.argv:
-        try:
-            data = d.run()
+    try:
+        data = d.run()
+        if '-d' not in sys.argv:
             d.write_csv(data)
             d.email_results()
-        except KeyboardInterrupt:
-            d.close()
-            os.system('deactivate')
-        try:
-            if '-s' in sys.argv:
-                while True:
-                    schedule.run_pending()
-        except:
-            pass
-    else:
-        d.email_results()
-        #d.write_csv(d.hist)
+        else:
+            d.write_csv(data)
+            d.email_results()
+    except KeyboardInterrupt:
+        d.close()
+        os.system('deactivate')
+    try:
+        if '-s' in sys.argv:
+            while True:
+                schedule.run_pending()
+    except:
+        pass
     atexit.register(d.close())
     d.close()
 
