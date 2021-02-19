@@ -28,6 +28,8 @@ class Driver:
         self.hist={}
         self.load_history()
         self.genesis = {}
+        self.stats = {}
+        self.users = {}
         #self.read_genesis()
 
         #Configure webdriver
@@ -96,6 +98,8 @@ class Driver:
 
         #Fetch crawler data
         data = crawler.crawl()
+
+        self.stats = crawler.stats
         
         #Cleanup cache
         _, _, filenames = next(os.walk(os.getcwd() + '/cache/logs'))
@@ -116,6 +120,7 @@ class Driver:
     def close(self):
         #Cleans up webdriver processes and exits program
         self.webdriver.quit()
+        self.logger.critical('Closing...')
         sys.exit()
 
     def write_csv(self, data):
@@ -186,6 +191,7 @@ class Driver:
                             key, rank, message[1], latest, \
                             message[0], edited])
 
+        self.users = users
         #File handler for Userdb file
         with open (os.getcwd() + f'/cache/csv/userdb/users_{datetime.datetime.now().strftime("%Y-%m-%d")}.csv', "w") as f:
             f = csv.writer(f)
@@ -296,6 +302,44 @@ class Driver:
             server.sendmail(emailfrom, emailto, msg.as_string())
             server.quit()
 
+    def report_stats(self):
+        print('<------------------------------------>')
+        print('During the last scan, we encountered: ')
+        deletes = self.stats['deletions']
+        print(f'{deletes} message posts deleted or no longer found')
+        mods = self.stats['modifications']
+        print(f'{mods} message posts modified or edited')
+        
+        modsli = {}
+        sum_ = 0
+        for key in self.stats['user_mods'].keys():
+            modsli[key] = self.stats['user_mods'][key]
+            sum_ += self.stats['user_mods'][key]
+        modsavg = sum_/len(self.users.keys())
+        print(f'On average, each user had {modsavg} posts modified since the last scan')
+        deleteli = {}
+        sum_ = 0
+        for key in self.stats['user_deletes'].keys():
+            deleteli[key] = self.stats['user_deletes'][key]
+            sum_ += self.stats['user_deletes'][key]
+        deleteavg = sum_/len(self.users.keys())
+        print(f'On average, each user had {deleteavg} posts deleted since the last scan')
+        i = input('Display deletes/mods for indiv. users? (y/n)')
+        if i == 'y':
+            used = []
+            for key in modsli.keys():
+                print(f'User {key} had {modsli[key]} posts modified since the last scan')
+                if key in deleteli.keys():
+                    print(f'User {key} had {deleteli[key]} posts deleted since the last scan')
+                    used.append(key)
+
+            print('Remaining deletions detected w/o related mod: ')
+            for key in deleteli.keys():
+                if key not in used:
+                    print(f'User {key} had {deleteli[key]} posts deleted since the last scan')
+
+        else:
+            pass
 if __name__ == "__main__":
     #Run test functions
     d = Driver()
@@ -304,6 +348,7 @@ if __name__ == "__main__":
         if '-d' not in sys.argv:
             d.write_csv(data)
             d.email_results()
+            d.report_stats()
         else:
             d.write_csv(data)
             d.email_results()

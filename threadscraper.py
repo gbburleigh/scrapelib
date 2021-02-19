@@ -2,19 +2,25 @@ import sys, os, time, json, logging, datetime, traceback, inspect, uuid, hashlib
 from bs4 import BeautifulSoup
 
 class ThreadScraper:
-    def __init__(self, driver, hist, target=None, debug=False):
+    def __init__(self, driver, hist, target=None, debug=False, stats=None):
         #Instantiate soup object and inherit logger.
         self.soup = None
         self.driver = driver
         self.hist = hist
         self.logger = logging.getLogger(__name__)
         self.users = {}
-        self.stats = {}
-        self.stats['deletions'] = 0
-        self.stats['modifications'] = 0
-        self.stats['user_mods'] = {}
-        self.stats['user_deletes'] = {}
+        if stats is None:
+            self.stats = {}
+            self.stats['deletions'] = 0
+            self.stats['modifications'] = 0
+            self.stats['user_mods'] = {}
+            self.stats['user_deletes'] = {}
+        else:
+            self.stats = stats
         self.debug_mode = debug
+
+    def update_stats(self, stats):
+        self.stats = stats
 
     def make_soup(self, html, url, tar=None):
         """Main thread scraper function. Uses BeautifulSoup to parse HTML based on class tags and 

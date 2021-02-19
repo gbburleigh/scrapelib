@@ -15,6 +15,11 @@ class Crawler:
         self.genesis = genesis
         self.hist = hist
         self.reached_genesis = False
+        self.stats = {}
+        self.stats['deletions'] = 0
+        self.stats['modifications'] = 0
+        self.stats['user_mods'] = {}
+        self.stats['user_deletes'] = {}
         self.skipped = ['https://community.upwork.com/t5/Announcements/Welcome-to-the-Upwork-Community/td-p/1']
         self.scraper = ThreadScraper(self.driver, self.hist, debug=debug)
         print(f'Debug mode ={debug}')
@@ -94,8 +99,8 @@ class Crawler:
 
                 #Fetch page
                 self.driver.get(url)
-                time.sleep(3)
-
+                time.sleep(2)
+                self.scraper.update_stats(self.stats)
                 res = self.scraper.make_soup(self.driver.page_source, url, tar)
                 #if res is not None:
                     #Parse threads and send to subpackage
@@ -103,6 +108,17 @@ class Crawler:
                     pkg[url].update(res)
                 except KeyError:
                     pkg[url] = res
+
+                self.stats['deletions'] = self.scraper.stats['deletions']
+                self.stats['modifications'] = self.scraper.stats['modifications']
+                try:
+                    self.stats['user_mods'].update(self.scraper.stats['user_mods'])
+                except:
+                    print('error updating user modification entries')
+                try:
+                    self.stats['user_deletes'].update(self.scraper.stats['user_deletes'])
+                except:
+                    print('error updating user delete entries')
 
             #We've hit the last post, let's exit    
             if self.reached_genesis is True:
