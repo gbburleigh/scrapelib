@@ -308,8 +308,6 @@ class Driver:
 
             maintype, subtype = ctype.split("/", 1)
 
-            input(maintype)
-
             if maintype == "text":
                 fp = open(fileToSend)
                 attachment = MIMEText(fp.read(), _subtype=subtype)
@@ -331,12 +329,12 @@ class Driver:
 
             body = ''
 
-            body += '<------------------------------------------------------------------------------>\n'
-            body += 'During the last scan, we encountered: \n'
+            #body += '<------------------------------------------------------------------------------>\n'
+            body += 'During the last scan, we encountered: \n\n'
             deletes = self.stats['deletions']
             body += f'{deletes} message posts deleted or no longer found\n'
             mods = self.stats['modifications']
-            body += f'{mods} message posts modified or edited\n'
+            body += f'{mods} message posts modified or edited\n\n'
             
             modsli = {}
             sum_ = 0
@@ -352,7 +350,7 @@ class Driver:
                 sum_ += self.stats['user_deletes'][key]
             deleteavg = sum_/len(self.users.keys())
             body += f'On average, each user had {deleteavg} posts deleted since the last scan\n'
-            body += '<------------------------------------------------------------------------------>\n'
+            #body += '<------------------------------------------------------------------------------>\n'
 
             body = MIMEText(body)
             msg.attach(body)
@@ -369,11 +367,11 @@ class Driver:
 
     def report_stats(self):
         print('<------------------------------------------------------------------------------>')
-        print('During the last scan, we encountered: ')
+        print('During the last scan, we encountered: \n')
         deletes = self.stats['deletions']
-        print(f'{deletes} message posts deleted or no longer found')
+        print(f'[{deletes} message posts deleted or no longer found]')
         mods = self.stats['modifications']
-        print(f'{mods} message posts modified or edited')
+        print(f'[{mods} message posts modified or edited]\n')
         
         modsli = {}
         sum_ = 0
