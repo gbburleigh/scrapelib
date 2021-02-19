@@ -79,7 +79,7 @@ class ThreadScraper:
         # dt = datetime.datetime.strptime(d, date_format)
         # input((datetime.datetime.now()-dt).days)
         # if (datetime.datetime.now()-dt).days > 7:
-        #     return None
+        #     return {}
         try:
             edit_date = self.soup.find('span', class_='DateTime lia-message-edited-on lia-component-common-widget-date')\
                 .find('span', class_='message_post_text').text

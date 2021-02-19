@@ -32,9 +32,9 @@ class Crawler:
                             #'https://community.upwork.com/t5/Announcements/bd-p/news',\
                             'https://community.upwork.com/t5/Clients/bd-p/clients']
 
-        if '-f' not in sys.argv:
-            for tar in self.targets:
-                self.genesis[tar] = None
+        # if '-f' not in sys.argv:
+        #     for tar in self.targets:
+        #         self.genesis[tar] = None
 
         self.logger.info('Crawler configured successfully')
 
@@ -102,13 +102,6 @@ class Crawler:
                 time.sleep(2)
                 self.scraper.update_stats(self.stats)
                 res = self.scraper.make_soup(self.driver.page_source, url, tar)
-                #if res is not None:
-                    #Parse threads and send to subpackage
-                try:
-                    pkg[url].update(res)
-                except KeyError:
-                    pkg[url] = res
-
                 self.stats['deletions'] = self.scraper.stats['deletions']
                 self.stats['modifications'] = self.scraper.stats['modifications']
                 try:
@@ -119,10 +112,17 @@ class Crawler:
                     self.stats['user_deletes'].update(self.scraper.stats['user_deletes'])
                 except:
                     print('error updating user delete entries')
+                #if res is not None:
+                    #Parse threads and send to subpackage
+                try:
+                    pkg[url].update(res)
+
+                except KeyError:
+                    pkg[url] = res
 
             #We've hit the last post, let's exit    
-            if self.reached_genesis is True:
-                return pkg
+            # if self.reached_genesis is True:
+            #     return pkg
 
         return pkg
 

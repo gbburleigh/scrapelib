@@ -25,11 +25,18 @@ class Driver:
         self.ch.setFormatter(self.formatter)
         self.logger.addHandler(self.ch)
         self.logger.addHandler(self.fh)
+
+        #Configure history dictionary and load data into it if possible
         self.hist={}
         self.load_history()
-        self.genesis = {}
+
+        #Instantiate backend tracking fields
         self.stats = {}
         self.users = {}
+
+        """DEPRECATED"""
+        self.genesis = {}
+        self.find_oldest_post()
         #self.read_genesis()
 
         #Configure webdriver
@@ -54,6 +61,7 @@ class Driver:
         schedule.every().day.at('00:00').do(self.run)
 
     def read_genesis(self):
+        """DEPRECATED"""
         #Right now this is really inefficient. Should only be used at init time
         _, _, filenames = next(os.walk(os.getcwd() + '/cache/logs'))
         filenames.remove('debug.log')
@@ -70,13 +78,40 @@ class Driver:
                         li.append([postdata['pkg_creation_stamp'], link])
 
                     li = sorted(li, key=lambda x: x[0])
-                    self.genesis[url] = li[0]
+                    #self.genesis[url] = li[0]
 
             self.logger.info(f'Got genesis URLS: {self.genesis}')
         except Exception as e:
             self.logger.critical('Error loading genesis data!')
             self.genesis = None
             print(e)
+
+    def find_oldest_post(self):
+        if self.hist is not None:
+            li = []
+            for category_url in self.hist.keys():
+                for thread_url in self.hist[category_url].keys():
+                    timestamp = self.hist[category_url][thread_url]['post_date']
+                    postdate = str(timestamp)
+                    try:
+                        postdate = postdate.split(' AM')[0]
+                    except:
+                        pass
+                    try:
+                        postdate = postdate.split(' PM')[0]
+                    except:
+                        pass
+                    date_format = "%b %d, %Y %H:%M:%S"
+                    dt = datetime.datetime.strptime(postdate, date_format)
+                    li.append((thread_url, dt))
+                try:
+                    li = sorted(li, key=lambda x: x[1])
+                    oldest_url = li[0][0]
+                    self.genesis[category_url] = oldest_url
+                except:
+                    self.genesis[category_url] = None
+
+            print('Acquired genesis urls: {}'.format(self.genesis))
         
     def run(self):
 
@@ -91,10 +126,9 @@ class Driver:
         #Instantiate crawler
         if '-d' in sys.argv:
             crawler = Crawler(self.webdriver, self.hist, target='upwork', \
-                genesis=self.genesis, debug=True)
+                debug=True, genesis=self.genesis)
         else:
-            crawler = Crawler(self.webdriver, self.hist, target='upwork', \
-                genesis=self.genesis)
+            crawler = Crawler(self.webdriver, self.hist, target='upwork', genesis=self.genesis)
 
         #Fetch crawler data
         data = crawler.crawl()
@@ -249,9 +283,9 @@ class Driver:
 
         #Declare relvant addresses
         emailfrom = "scrapelib@gmail.com"
-        dsts = ["scrapelib@gmail.com"]#, \
+        dsts = ["scrapelib@gmail.com",\
             #"hatim.rahman@kellogg.northwestern.edu", \
-            #"grahamburleigh2022@u.northwestern.edu"]
+            "grahamburleigh2022@u.northwestern.edu"]
 
         #For each specified destination 
         for dst in dsts:
@@ -274,6 +308,8 @@ class Driver:
 
             maintype, subtype = ctype.split("/", 1)
 
+            input(maintype)
+
             if maintype == "text":
                 fp = open(fileToSend)
                 attachment = MIMEText(fp.read(), _subtype=subtype)
@@ -292,6 +328,35 @@ class Driver:
                 attachment.set_payload(fp.read())
                 fp.close()
                 encoders.encode_base64(attachment)
+
+            body = ''
+
+            body += '<------------------------------------------------------------------------------>\n'
+            body += 'During the last scan, we encountered: \n'
+            deletes = self.stats['deletions']
+            body += f'{deletes} message posts deleted or no longer found\n'
+            mods = self.stats['modifications']
+            body += f'{mods} message posts modified or edited\n'
+            
+            modsli = {}
+            sum_ = 0
+            for key in self.stats['user_mods'].keys():
+                modsli[key] = self.stats['user_mods'][key]
+                sum_ += self.stats['user_mods'][key]
+            modsavg = sum_/len(self.users.keys())
+            body += f'On average, each user had {modsavg} posts modified since the last scan\n'
+            deleteli = {}
+            sum_ = 0
+            for key in self.stats['user_deletes'].keys():
+                deleteli[key] = self.stats['user_deletes'][key]
+                sum_ += self.stats['user_deletes'][key]
+            deleteavg = sum_/len(self.users.keys())
+            body += f'On average, each user had {deleteavg} posts deleted since the last scan\n'
+            body += '<------------------------------------------------------------------------------>\n'
+
+            body = MIMEText(body)
+            msg.attach(body)
+
             attachment.add_header("Content-Disposition", "attachment", filename=fileToSend)
             msg.attach(attachment)
 
@@ -303,7 +368,7 @@ class Driver:
             server.quit()
 
     def report_stats(self):
-        print('<------------------------------------>')
+        print('<------------------------------------------------------------------------------>')
         print('During the last scan, we encountered: ')
         deletes = self.stats['deletions']
         print(f'{deletes} message posts deleted or no longer found')
@@ -330,7 +395,7 @@ class Driver:
             for key in modsli.keys():
                 print(f'User {key} had {modsli[key]} posts modified since the last scan')
                 if key in deleteli.keys():
-                    print(f'User {key} had {deleteli[key]} posts deleted since the last scan')
+                    print(f'User {key} also had {deleteli[key]} posts deleted since the last scan')
                     used.append(key)
 
             print('Remaining deletions detected w/o related mod: ')
@@ -340,18 +405,21 @@ class Driver:
 
         else:
             pass
+        print('<------------------------------------------------------------------------------>')
+
 if __name__ == "__main__":
     #Run test functions
     d = Driver()
     try:
-        data = d.run()
-        if '-d' not in sys.argv:
-            d.write_csv(data)
-            d.email_results()
-            d.report_stats()
-        else:
-            d.write_csv(data)
-            d.email_results()
+        if '--config' not in sys.argv:
+            data = d.run()
+            if '-d' not in sys.argv:
+                d.write_csv(data)
+                d.email_results()
+                d.report_stats()
+            else:
+            #d.write_csv(data)
+                d.email_results()
     except KeyboardInterrupt:
         d.close()
         os.system('deactivate')
