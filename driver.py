@@ -70,7 +70,7 @@ class Driver:
                     self.email_results(warn=True)
                     self.logger.critical('This issue has been reported.')
                     self.close()
-	    else:
+        else:
             from selenium.webdriver.chrome.options import Options
             from webdriver_manager import chrome
             from webdriver_manager.chrome import ChromeDriverManager
@@ -373,8 +373,8 @@ class Driver:
                 body = ''
 
                 #body += '<------------------------------------------------------------------------------>\n'
-                diff = datetime.dateime.now() - self.last_scan
-                body += f'{diff.days} days, {diff.hours}, {diff.minutes} minutes since last scan.')
+                diff = datetime.datetime.now() - self.last_scan
+                body += f'{diff.days} days, {diff.hours}, {diff.minutes} minutes since last scan.'
                 body += 'During the last scan, we encountered: \n\n'
                 deletes = self.stats['deletions']
                 body += f'{deletes} message posts deleted or no longer found\n'
@@ -418,7 +418,7 @@ class Driver:
 
     def report_stats(self):
         print('<------------------------------------------------------------------------------>')
-        diff = datetime.dateime.now() - self.last_scan
+        diff = datetime.datetime.now() - self.last_scan
         print(f'{diff.days} days, {diff.hours}, {diff.minutes} minutes since last scan.')
         print('During the last scan, we encountered: \n')
         deletes = self.stats['deletions']
