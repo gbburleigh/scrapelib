@@ -295,7 +295,7 @@ class Driver:
                     data = json.load(f)
                     self.hist = data
                     try:
-                        self.last_scan = data['timestamp']
+                        self.last_scan = datetime.dateime.strptime(data['timestamp'], "%m/%d/%Y, %H:%M:%S")
                     except:
                         self.last_scan = datetime.datetime.now()
             except Exception as e:
