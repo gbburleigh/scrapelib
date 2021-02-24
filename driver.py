@@ -48,7 +48,8 @@ class Driver:
             options = Options()
             options.add_argument('--headless')
             try:
-		        self.webdriver = webdriver.Firefox(executable_path=GeckoDriverManager().install(), firefox_options=options, log_path=os.getcwd()+ '/cache/sys/geckodriver.log')
+                self.webdriver = webdriver.Firefox(executable_path=GeckoDriverManager().install(), \
+                    firefox_options=options, log_path=os.getcwd() + '/cache/sys/geckodriver.log')
             except OSError:
                 #Add a check to make sure geckodriver binary isn't busy already
                 import subprocess
@@ -61,7 +62,8 @@ class Driver:
                         pids.append(int(line))
                     for pid in pids:
                         subprocess.call(['kill', pid])
-                    self.webdriver = webdriver.Firefox(executable_path=GeckoDriverManager().install(), firefox_options=options, log_path=os.getcwd()+ '/cache/sys/geckodriver.log')
+                    self.webdriver = webdriver.Firefox(executable_path=GeckoDriverManager().install(), \
+                        firefox_options=options, log_path=os.getcwd()+ '/cache/sys/geckodriver.log')
                 except Exception as e:
                     self.logger.critical(f'Error while terminating existing driver processes: {e}')
                     self.logger.critical("Try 'lsof [path to .wdm]/.wdm/drivers/geckodriver/linux64/v0.29.0/geckodriver' and 'kill' each pid listed")
