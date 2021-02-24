@@ -25,6 +25,7 @@ class Driver:
         self.ch.setFormatter(self.formatter)
         self.logger.addHandler(self.ch)
         self.logger.addHandler(self.fh)
+        self.last_scan = None
 
         #Configure history dictionary and load data into it if possible
         self.hist={}
@@ -46,9 +47,28 @@ class Driver:
             from webdriver_manager.firefox import GeckoDriverManager
             options = Options()
             options.add_argument('--headless')
-            self.webdriver = webdriver.Firefox(executable_path=GeckoDriverManager().install(), \
-                firefox_options=options, log_path=os.getcwd()+ '/cache/sys/geckodriver.log')
-        else:
+            try:
+		        self.webdriver = webdriver.Firefox(executable_path=GeckoDriverManager().install(), \
+                	firefox_options=options, log_path=os.getcwd()+ '/cache/sys/geckodriver.log')
+            except OSError:
+                #Add a check to make sure geckodriver binary isn't busy already
+                import subprocess
+                try:
+                    out = subprocess.check_output(['lsof', '/home/gbb5412/.wdm/drivers/geckodriver/linux64/v0.29.0/geckodriver'],\
+                        stderr=open(os.devnull, 'w'))
+                    pids = []
+                    lines = out.strip().split('\n')
+                    for line in lines:
+                        pids.append(int(line))
+                    for pid in pids:
+                        subprocess.call(['kill', pid])
+                except:
+                    self.logger.critical('Error while terminating existing driver processes!')
+                    self.logger.critical("Try 'lsof [path to .wdm]/.wdm/drivers/geckodriver/linux64/v0.29.0/geckodriver' and 'kill' each pid listed")
+                    self.email_results(warn=True)
+                    self.logger.critical('This issue has been reported.')
+                    self.close()
+	    else:
             from selenium.webdriver.chrome.options import Options
             from webdriver_manager import chrome
             from webdriver_manager.chrome import ChromeDriverManager
@@ -192,8 +212,12 @@ class Driver:
                         for v in data[category_url][thread_url]['messages'][key]:
                             li.append(int(v))
                         latest = max(li)
+                        last = None
                         for message in data[category_url][thread_url]['messages'][key][str(latest)]:
                             #Try to pull edited status
+                            if message[1] == last:
+                                continue
+                            
                             try:
                                 edited = message[2]
                             except:
@@ -205,25 +229,30 @@ class Driver:
                                     rank = users[entry]['rank']
 
                             if message[1] == '<--Deleted-->':
-                                try:
-                                    msgs = data[category_url][thread_url]['messages'][key][str(latest-1)]
-                                    for msg in msgs:
-                                        if msg[0] == message[0]:
-                                            f.writerow([data[category_url][thread_url]['title'],\
-                                            data[category_url][thread_url]['post_date'], \
-                                            data[category_url][thread_url]['edit_date'], \
-                                            key, rank, msg[1], latest-1, \
-                                            msg[0], edited])
-                                            break
-                                except:
-                                    pass
+                                last = latest - 1
+                                while last != 0:
+                                    try:
+                                        msgs = data[category_url][thread_url]['messages'][key][str(last)]
+                                        for msg in msgs:
+                                            if msg[0] == message[0] and msg[1] != '<--Deleted-->':
+                                                f.writerow([data[category_url][thread_url]['title'],\
+                                                data[category_url][thread_url]['post_date'], \
+                                                data[category_url][thread_url]['edit_date'], \
+                                                key, rank, msg[1], latest-1, \
+                                                msg[0], '<--Deleted-->'])
+                                                break
+                                    except:
+                                        last -= 1
 
+                            print(f'Writing message\n userid: {key}\n timestamp: {message[0]}\n message: {message[1]}')
                             #Write row to csv
                             f.writerow([data[category_url][thread_url]['title'],\
                             data[category_url][thread_url]['post_date'], \
                             data[category_url][thread_url]['edit_date'], \
                             key, rank, message[1], latest, \
                             message[0], edited])
+
+                            last = message[1]
 
         self.users = users
         #File handler for Userdb file
@@ -263,11 +292,15 @@ class Driver:
                 with open(os.getcwd() + '/cache/logs/' + newest_file, 'r') as f:
                     data = json.load(f)
                     self.hist = data
+                    try:
+                        self.last_scan = data['timestamp']
+                    except:
+                        self.last_scan = datetime.datetime.now()
             except Exception as e:
                 self.logger.critical('Error while loading history!')
                 print(e)
 
-    def email_results(self):
+    def email_results(self, warn=False):
         """Emails csv results to designated addresses. Consider pulling addresses to driver class member
         for portability."""
 
@@ -291,7 +324,10 @@ class Driver:
         for dst in dsts:
             #Get our credentials and data ready
             emailto = dst
-            fileToSend = f'./cache/csv/{datetime.datetime.now().strftime("%Y-%m-%d")}.csv'
+            if warn is False:
+                fileToSend = f'./cache/csv/{datetime.datetime.now().strftime("%Y-%m-%d")}.csv'
+            else:
+                fileToSend = ''
             username = "scrapelib"
             password = "scrapejapes1122!"
 
@@ -299,8 +335,12 @@ class Driver:
             msg = MIMEMultipart()
             msg["From"] = emailfrom
             msg["To"] = emailto
-            msg["Subject"] = f'{datetime.datetime.now().strftime("%Y-%m-%d")}.csv'
-            msg.preamble = f'{datetime.datetime.now().strftime("%Y-%m-%d")}.csv'
+            if warn is False:
+                msg["Subject"] = f'{datetime.datetime.now().strftime("%Y-%m-%d")}.csv'
+                msg.preamble = f'{datetime.datetime.now().strftime("%Y-%m-%d")}.csv'
+            else:
+                msg["Subject"] = f'Geckodriver failure! {datetime.datetime.now().strftime("%Y-%m-%d")}'
+                msg.preamble = 'Something went wrong while configuring the driver settings!'
 
             ctype, encoding = mimetypes.guess_type(fileToSend)
             if ctype is None or encoding is not None:
@@ -327,37 +367,46 @@ class Driver:
                 fp.close()
                 encoders.encode_base64(attachment)
 
-            body = ''
+            if warn is False:
+                body = ''
 
-            #body += '<------------------------------------------------------------------------------>\n'
-            body += 'During the last scan, we encountered: \n\n'
-            deletes = self.stats['deletions']
-            body += f'{deletes} message posts deleted or no longer found\n'
-            mods = self.stats['modifications']
-            body += f'{mods} message posts modified or edited\n\n'
-            
-            modsli = {}
-            sum_ = 0
-            for key in self.stats['user_mods'].keys():
-                modsli[key] = self.stats['user_mods'][key]
-                sum_ += self.stats['user_mods'][key]
-            modsavg = sum_/len(self.users.keys())
-            body += f'On average, each user had {modsavg} posts modified since the last scan\n'
-            deleteli = {}
-            sum_ = 0
-            for key in self.stats['user_deletes'].keys():
-                deleteli[key] = self.stats['user_deletes'][key]
-                sum_ += self.stats['user_deletes'][key]
-            deleteavg = sum_/len(self.users.keys())
-            body += f'On average, each user had {deleteavg} posts deleted since the last scan\n'
-            #body += '<------------------------------------------------------------------------------>\n'
+                #body += '<------------------------------------------------------------------------------>\n'
+                diff = datetime.dateime.now() - self.last_scan
+                body += f'{diff.days} days, {diff.hours}, {diff.minutes} minutes since last scan.')
+                body += 'During the last scan, we encountered: \n\n'
+                deletes = self.stats['deletions']
+                body += f'{deletes} message posts deleted or no longer found\n'
+                mods = self.stats['modifications']
+                body += f'{mods} message posts modified or edited\n\n'
+                
+                modsli = {}
+                sum_ = 0
+                for key in self.stats['user_mods'].keys():
+                    modsli[key] = self.stats['user_mods'][key]
+                    sum_ += self.stats['user_mods'][key]
+                modsavg = sum_/len(self.users.keys())
+                body += f'On average, each user had {modsavg} posts modified since the last scan\n'
+                deleteli = {}
+                sum_ = 0
+                for key in self.stats['user_deletes'].keys():
+                    deleteli[key] = self.stats['user_deletes'][key]
+                    sum_ += self.stats['user_deletes'][key]
+                deleteavg = sum_/len(self.users.keys())
+                body += f'On average, each user had {deleteavg} posts deleted since the last scan\n'
+                #body += '<------------------------------------------------------------------------------>\n'
 
-            body = MIMEText(body)
-            msg.attach(body)
+                body = MIMEText(body)
+                msg.attach(body)
 
-            attachment.add_header("Content-Disposition", "attachment", filename=fileToSend)
-            msg.attach(attachment)
-
+                attachment.add_header("Content-Disposition", "attachment", filename=fileToSend)
+                msg.attach(attachment)
+            else:
+                body = 'This is a message informing you that something went wrong with Geckodriver while configuring your webdriver.\n'
+                body += "Usually this is due to processes not closing properly from previous sessions. Try using lsof [path to .wdm]/.wdm/drivers/geckodriver/linux64/v0.29.0/geckodriver' and 'kill' each pid listed"
+                body += 'You may have found this already while running manually, otherwise log onto Quest and fix it'
+                body += "We'll have a patch for this soon, thanks for bearing with me."
+                body = MIMEText(body)
+                msg.attach(body)
             #Send package
             server = smtplib.SMTP("smtp.gmail.com:587")
             server.starttls()
@@ -367,6 +416,8 @@ class Driver:
 
     def report_stats(self):
         print('<------------------------------------------------------------------------------>')
+        diff = datetime.dateime.now() - self.last_scan
+        print(f'{diff.days} days, {diff.hours}, {diff.minutes} minutes since last scan.')
         print('During the last scan, we encountered: \n')
         deletes = self.stats['deletions']
         print(f'[{deletes} message posts deleted or no longer found]')

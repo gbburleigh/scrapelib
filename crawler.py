@@ -120,6 +120,8 @@ class Crawler:
                 except KeyError:
                     pkg[url] = res
 
+            pkg['timestamp'] = datetime.datetime.now()
+
             #We've hit the last post, let's exit    
             # if self.reached_genesis is True:
             #     return pkg
