@@ -488,7 +488,7 @@ class Driver:
             sum_ += self.stats['user_deletes'][key]
         deleteavg = sum_/len(self.users.keys())
         #print(f'On average, each user had {deleteavg} posts deleted since the last scan')
-        print(f'Out of {len(self.users.keys())} users, {len(deleteli.keys())} had post(s) modified')
+        print(f'Out of {len(self.users.keys())} users, {len(deleteli.keys())} had post(s) deleted')
         i = input('Display deletes/mods for indiv. users? (y/n)')
         if i == 'y':
             used = []
