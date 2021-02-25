@@ -112,8 +112,8 @@ class Driver:
         if self.hist is not None and type(self.hist) == dict:
             li = []
             for category_url in self.hist.keys():
-                for thread_url in self.hist[category_url].keys():
-                    if thread_url != 'timestamp':
+                if category_url != 'timestamp':
+                    for thread_url in self.hist[category_url].keys():
                         #print(self.hist[category_url][thread_url])
                         timestamp = self.hist[category_url][thread_url]['post_date']
                         postdate = str(timestamp)
@@ -224,12 +224,12 @@ class Driver:
 
             #For each category URL
             for category_url in data.keys():
+
+                if category_url == 'timestamp':
+                    continue
                 #For each thread scraped in that category
                 for thread_url in data[category_url].keys():
                     #Add the entry to our userdb
-
-                    if thread_url == 'timestamp':
-                        continue
 
                     for name in data[category_url][thread_url]['contributors'].keys():
                         users[name] = data[category_url][thread_url]['contributors'][name]
@@ -474,14 +474,16 @@ class Driver:
             modsli[key] = self.stats['user_mods'][key]
             sum_ += self.stats['user_mods'][key]
         modsavg = sum_/len(self.users.keys())
-        print(f'On average, each user had {modsavg} posts modified since the last scan')
+        #print(f'On average, each user had {modsavg} posts modified since the last scan')
+        print(f'Out of {len(self.users.keys())} users, {len(modsli.keys())} had post(s) modified')
         deleteli = {}
         sum_ = 0
         for key in self.stats['user_deletes'].keys():
             deleteli[key] = self.stats['user_deletes'][key]
             sum_ += self.stats['user_deletes'][key]
         deleteavg = sum_/len(self.users.keys())
-        print(f'On average, each user had {deleteavg} posts deleted since the last scan')
+        #print(f'On average, each user had {deleteavg} posts deleted since the last scan')
+        print(f'Out of {len(self.users.keys())} users, {len(deleteli.keys())} had post(s) modified')
         i = input('Display deletes/mods for indiv. users? (y/n)')
         if i == 'y':
             used = []

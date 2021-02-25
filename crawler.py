@@ -59,6 +59,8 @@ class Crawler:
             total[target] = self.parse_page(target)
             self.logger.debug('Completed crawl on {} in {}s'.format\
                 (target, (datetime.datetime.now() - start).total_seconds()))
+
+        total['timestamp'] = datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
             
         return json.dumps(total, indent=4)
 
@@ -122,8 +124,6 @@ class Crawler:
                         pkg[url] = res
                 else:
                     self.logger.critical(f'Something went wrong while parsing url {url}')
-
-            pkg['timestamp'] = datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
 
             #We've hit the last post, let's exit    
             # if self.reached_genesis is True:
