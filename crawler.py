@@ -4,7 +4,7 @@ from selenium.common.exceptions import StaleElementReferenceException
 
 class Crawler:
     def __init__(self, driver, hist, target=None, genesis=None,\
-                max_page_scroll=50, debug=False):
+                max_page_scroll=15, debug=False):
         #Inherit objects and instantiate scraper class
         self.driver = driver
         self.logger = logging.getLogger(__name__)
@@ -77,7 +77,7 @@ class Crawler:
             if currentpage == 1:
                 pass
             else:
-                self.driver.get(self.generate_next(url, currentpage))
+                self.driver.get(self.generate_next(tar, currentpage))
                 time.sleep(3)
 
             self.logger.info(f'Current category pagenum {currentpage}')
@@ -102,23 +102,26 @@ class Crawler:
                 time.sleep(2)
                 self.scraper.update_stats(self.stats)
                 res = self.scraper.make_soup(self.driver.page_source, url, tar)
-                self.stats['deletions'] = self.scraper.stats['deletions']
-                self.stats['modifications'] = self.scraper.stats['modifications']
-                try:
-                    self.stats['user_mods'].update(self.scraper.stats['user_mods'])
-                except:
-                    print('error updating user modification entries')
-                try:
-                    self.stats['user_deletes'].update(self.scraper.stats['user_deletes'])
-                except:
-                    print('error updating user delete entries')
-                #if res is not None:
-                    #Parse threads and send to subpackage
-                try:
-                    pkg[url].update(res)
+                if res is not None:
+                    self.stats['deletions'] = self.scraper.stats['deletions']
+                    self.stats['modifications'] = self.scraper.stats['modifications']
+                    try:
+                        self.stats['user_mods'].update(self.scraper.stats['user_mods'])
+                    except:
+                        print('error updating user modification entries')
+                    try:
+                        self.stats['user_deletes'].update(self.scraper.stats['user_deletes'])
+                    except:
+                        print('error updating user delete entries')
+                    #if res is not None:
+                        #Parse threads and send to subpackage
+                    try:
+                        pkg[url].update(res)
 
-                except KeyError:
-                    pkg[url] = res
+                    except KeyError:
+                        pkg[url] = res
+                else:
+                    self.logger.critical(f'Something went wrong while parsing url {url}')
 
             pkg['timestamp'] = datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
 

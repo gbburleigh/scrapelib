@@ -26,6 +26,8 @@ class ThreadScraper:
         """Main thread scraper function. Uses BeautifulSoup to parse HTML based on class tags and 
         compiles relevant data/metadata in dict format. Detects edit status and moderation status."""
         self.soup = BeautifulSoup(html, 'html.parser')
+        if self.soup is None:
+            return None
         
         try:
             hist_partition = self.hist[tar]
@@ -143,7 +145,7 @@ class ThreadScraper:
                     pass
                 date_format = "%b %d, %Y %H:%M:%S"
                 dt = datetime.datetime.strptime(postdate, date_format)
-                if (now-dt).days > 14:
+                if (now-dt).days > 10:
                     expired = True
                     break
                 if name not in self.users.keys():
