@@ -114,6 +114,8 @@ class Driver:
             for category_url in self.hist.keys():
                 if category_url != 'timestamp':
                     for thread_url in self.hist[category_url].keys():
+                        if thread_url == 'timestamp':
+                            continue
                         #print(self.hist[category_url][thread_url])
                         timestamp = self.hist[category_url][thread_url]['post_date']
                         postdate = str(timestamp)
@@ -230,6 +232,9 @@ class Driver:
                 #For each thread scraped in that category
                 for thread_url in data[category_url].keys():
                     #Add the entry to our userdb
+
+                    if thread_url == 'timestamp':
+                        continue
 
                     for name in data[category_url][thread_url]['contributors'].keys():
                         users[name] = data[category_url][thread_url]['contributors'][name]
