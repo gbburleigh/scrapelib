@@ -116,7 +116,7 @@ class Driver:
 
     def read_stats(self):
         try:
-            with open(os.getcwd() + f'/cache/sys/stats/{datetime.datetime.now().strftime("%Y-%m-%d")}', 'r') as f:
+            with open(os.getcwd() + f'/cache/sys/stats/{datetime.datetime.now().strftime("%Y-%m-%d")}.json', 'r') as f:
                 self.stats = json.load(f)
         except Exception as e:
             print(e)
