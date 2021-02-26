@@ -118,7 +118,8 @@ class Driver:
         try:
             with open(os.getcwd() + f'/cache/sys/stats/{datetime.datetime.now().strftime("%Y-%m-%d")}', 'r') as f:
                 self.stats = json.load(f)
-        except:
+        except Exception as e:
+            print(e)
             self.logger.warning('Error while loading stats for today!')
 
 
