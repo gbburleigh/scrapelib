@@ -26,6 +26,7 @@ class Driver:
         self.logger.addHandler(self.ch)
         self.logger.addHandler(self.fh)
         self.last_scan = None
+        self.scan_start = None
 
         #Configure history dictionary and load data into it if possible
         self.hist={}
@@ -160,11 +161,13 @@ class Driver:
         data = crawler.crawl()
 
         self.stats = crawler.stats
+
+        self.scan_start = datetime.datetime.now()
         
         #Cleanup cache
         _, _, filenames = next(os.walk(os.getcwd() + '/cache/logs'))
-        if len(filenames) > 100:
-            dif = len(filenames) - 100
+        if len(filenames) > 10:
+            dif = len(filenames) - 10
             for _ in range(dif):
                 oldest_file = min(filenames, key=os.path.getctime)
                 os.remove(os.path.abspath(oldest_file))
@@ -419,8 +422,11 @@ class Driver:
 
                 #body += '<------------------------------------------------------------------------------>\n'
                 diff = datetime.datetime.now() - self.last_scan
+                dur = datetime.datetime.now() - self.scan_start
+                durdays, durhours, durmins = dur.days, dur.seconds // 3600, dur.seconds // 60 % 60
                 days, hours, minutes = diff.days, diff.seconds // 3600, diff.seconds // 60 % 60
                 body += f'{days} days, {hours} hours, and {minutes} minutes since last scan.'
+                body += f'Scan took {durhours} hours, {durmins} minutes'
                 body += 'During the last scan, we encountered: \n\n'
                 deletes = self.stats['deletions']
                 body += f'{deletes} message posts deleted or no longer found\n'
@@ -433,14 +439,14 @@ class Driver:
                     modsli[key] = self.stats['user_mods'][key]
                     sum_ += self.stats['user_mods'][key]
                 modsavg = sum_/len(self.users.keys())
-                body += f'On average, each user had {modsavg} posts modified since the last scan\n'
+                body += f'Out of {len(self.users.keys())} users, {len(modsli.keys())} had post(s) modified\n'
                 deleteli = {}
                 sum_ = 0
                 for key in self.stats['user_deletes'].keys():
                     deleteli[key] = self.stats['user_deletes'][key]
                     sum_ += self.stats['user_deletes'][key]
                 deleteavg = sum_/len(self.users.keys())
-                body += f'On average, each user had {deleteavg} posts deleted since the last scan\n'
+                body += f'Out of {len(self.users.keys())} users, {len(deleteli.keys())} had post(s) deleted\n'
                 #body += '<------------------------------------------------------------------------------>\n'
 
                 body = MIMEText(body)
@@ -465,7 +471,10 @@ class Driver:
     def report_stats(self):
         print('<------------------------------------------------------------------------------>')
         diff = datetime.datetime.now() - self.last_scan
+        dur = datetime.datetime.now() - self.scan_start
+        durdays, durhours, durmins = dur.days, dur.seconds // 3600, dur.seconds // 60 % 60
         days, hours, minutes = diff.days, diff.seconds // 3600, diff.seconds // 60 % 60
+        print(f'Scan took {durhours} hours, {durmins} minutes')
         print(f'{days} days, {hours} hours, and {minutes} minutes since last scan.')
         print('During the last scan, we encountered: \n')
         deletes = self.stats['deletions']
