@@ -111,7 +111,7 @@ class Driver:
             print(e)
 
     def write_stats(self):
-        with open(os.getcwd() + f'/cache/sys/stats/{datetime.datetime.now().strftime("%Y-%m-%d")}', 'w') as f:
+        with open(os.getcwd() + f'/cache/sys/stats/{datetime.datetime.now().strftime("%Y-%m-%d")}.json', "w") as f:
             f.write(json.dumps(self.stats))
 
     def read_stats(self):
@@ -511,7 +511,10 @@ class Driver:
         deleteavg = sum_/len(self.users.keys())
         #print(f'On average, each user had {deleteavg} posts deleted since the last scan')
         print(f'Out of {len(self.users.keys())} users, {len(deleteli.keys())} had post(s) deleted')
-        i = input('Display deletes/mods for indiv. users? (y/n)')
+        if '-f' not in sys.argv:
+            i = input('Display deletes/mods for indiv. users? (y/n)')
+        else:
+            i = 'y'
         if i == 'y':
             used = []
             for key in modsli.keys():
