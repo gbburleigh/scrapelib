@@ -30,7 +30,8 @@ class Crawler:
         if target == 'upwork':
             self.targets = ['https://community.upwork.com/t5/Freelancers/bd-p/freelancers',\
                             #'https://community.upwork.com/t5/Announcements/bd-p/news',\
-                            'https://community.upwork.com/t5/Clients/bd-p/clients']
+                            'https://community.upwork.com/t5/Clients/bd-p/clients', \
+                            'https://community.upwork.com/t5/Agencies/bd-p/Agencies']
 
         # if '-f' not in sys.argv:
         #     for tar in self.targets:

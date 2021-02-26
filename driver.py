@@ -34,6 +34,7 @@ class Driver:
 
         #Instantiate backend tracking fields
         self.stats = {}
+        self.read_stats()
         self.users = {}
 
         """DEPRECATED"""
@@ -108,6 +109,18 @@ class Driver:
             self.logger.critical('Error loading genesis data!')
             self.genesis = None
             print(e)
+
+    def write_stats(self):
+        with open(os.getcwd() + f'/cache/sys/stats/{datetime.datetime.now().strftime("%Y-%m-%d")}', 'w') as f:
+            f.write(json.dumps(self.stats))
+
+    def read_stats(self):
+        try:
+            with open(os.getcwd() + f'/cache/sys/stats/{datetime.datetime.now().strftime("%Y-%m-%d")}', 'r') as f:
+                self.stats = json.load(f)
+        except:
+            self.logger.warning('Error while loading stats for today!')
+
 
     def find_oldest_post(self):
         if self.hist is not None and type(self.hist) == dict:
@@ -515,6 +528,7 @@ class Driver:
         else:
             pass
         print('<------------------------------------------------------------------------------>')
+        self.write_stats()
 
 if __name__ == "__main__":
     #Run test functions
