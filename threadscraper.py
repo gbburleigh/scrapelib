@@ -9,25 +9,43 @@ class ThreadScraper:
         self.hist = hist
         self.logger = logging.getLogger(__name__)
         self.users = {}
+        targets = ['https://community.upwork.com/t5/Freelancers/bd-p/freelancers',\
+                #'https://community.upwork.com/t5/Announcements/bd-p/news',\
+                'https://community.upwork.com/t5/Clients/bd-p/clients', \
+                'https://community.upwork.com/t5/Agencies/bd-p/Agencies']
         if stats is None:
             self.stats = {}
-            self.stats['deletions'] = 0
-            self.stats['modifications'] = 0
-            self.stats['user_mods'] = {}
-            self.stats['user_deletes'] = {}
+            # self.stats['deletions'] = 0
+            # self.stats['modifications'] = 0
+            # self.stats['user_mods'] = {}
+            # self.stats['user_deletes'] = {}
+            for tar in targets:
+                self.stats[tar.split('/t5/')[1].split('/')[0]] = {}
+                self.stats[tar.split('/t5/')[1].split('/')[0]]['deletions'] = 0
+                self.stats[tar.split('/t5/')[1].split('/')[0]]['modifications'] = 0
+                self.stats[tar.split('/t5/')[1].split('/')[0]]['user_mods'] = {}
+                self.stats[tar.split('/t5/')[1].split('/')[0]]['user_deletes'] = {}
         else:
             self.stats = stats
+
+        self.ref = {}
+
+        for tar in targets:
+            self.ref[tar] = tar.split('/t5/')[1].split('/')[0]
+
         self.debug_mode = debug
 
     def update_stats(self, stats):
         self.stats = stats
 
-    def make_soup(self, html, url, tar=None):
+    def make_soup(self, html, url, tar=None, categ=None):
         """Main thread scraper function. Uses BeautifulSoup to parse HTML based on class tags and 
         compiles relevant data/metadata in dict format. Detects edit status and moderation status."""
         self.soup = BeautifulSoup(html, 'html.parser')
         if self.soup is None:
             return None
+
+        category = categ
         
         try:
             hist_partition = self.hist[tar]
@@ -174,11 +192,11 @@ class ThreadScraper:
                         pass
 
                 if edit_status != 'Unedited':
-                    self.stats['modifications'] += 1
-                    if user_id in self.stats['user_mods'].keys():
-                        self.stats['user_mods'][user_id] += 1
+                    self.stats[category]['modifications'] += 1
+                    if user_id in self.stats[category]['user_mods'].keys():
+                        self.stats[category]['user_mods'][user_id] += 1
                     else:
-                        self.stats['user_mods'][user_id] = 1
+                        self.stats[category]['user_mods'][user_id] = 1
 
                 if post != '':
                     mid = int(hashlib.sha1(post.encode("utf-8")).hexdigest(), 16) % (10 ** 8)
@@ -232,26 +250,26 @@ class ThreadScraper:
                             for tup_ in new_tups:
                                 obj.append(tup[0])
                             if timestamp not in obj:
-                                self.stats['deletions'] += 1
-                                if user_id in self.stats['user_deletes'].keys():
-                                    self.stats['user_deletes'][user_id] += 1
+                                self.stats[category]['deletions'] += 1
+                                if user_id in self.stats[category]['user_deletes'].keys():
+                                    self.stats[category]['user_deletes'][user_id] += 1
                                 else:
-                                    self.stats['user_deletes'][user_id] = 1
+                                    self.stats[category]['user_deletes'][user_id] = 1
                                 messages[user_id][str(version)].append((timestamp, '<--Deleted-->', '<--Deleted-->'))
                         else:
                             if user_id in messages.keys() and str(version) in messages[user_id].keys():
-                                self.stats['deletions'] += 1
-                                if user_id in self.stats['user_deletes'].keys():
-                                    self.stats['user_deletes'][user_id] += 1
+                                self.stats[category]['deletions'] += 1
+                                if user_id in self.stats[category]['user_deletes'].keys():
+                                    self.stats[category]['user_deletes'][user_id] += 1
                                 else:
-                                    self.stats['user_deletes'][user_id] = 1
+                                    self.stats[category]['user_deletes'][user_id] = 1
                                 messages[user_id][str(version)].append((timestamp, '<--Deleted-->', '<--Deleted-->'))
                             else:
-                                self.stats['deletions'] += 1
-                                if user_id in self.stats['user_deletes'].keys():
-                                    self.stats['user_deletes'][user_id] += 1
+                                self.stats[category]['deletions'] += 1
+                                if user_id in self.stats[category]['user_deletes'].keys():
+                                    self.stats[category]['user_deletes'][user_id] += 1
                                 else:
-                                    self.stats['user_deletes'][user_id] = 1
+                                    self.stats[category]['user_deletes'][user_id] = 1
                                 messages[user_id] = {}
                                 messages[user_id][str(version)] = [(timestamp, '<--Deleted-->', '<--Deleted-->')]
 

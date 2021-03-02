@@ -16,10 +16,6 @@ class Crawler:
         self.hist = hist
         self.reached_genesis = False
         self.stats = {}
-        self.stats['deletions'] = 0
-        self.stats['modifications'] = 0
-        self.stats['user_mods'] = {}
-        self.stats['user_deletes'] = {}
         self.skipped = ['https://community.upwork.com/t5/Announcements/Welcome-to-the-Upwork-Community/td-p/1']
         self.scraper = ThreadScraper(self.driver, self.hist, debug=debug)
         print(f'Debug mode ={debug}')
@@ -32,6 +28,17 @@ class Crawler:
                             #'https://community.upwork.com/t5/Announcements/bd-p/news',\
                             'https://community.upwork.com/t5/Clients/bd-p/clients', \
                             'https://community.upwork.com/t5/Agencies/bd-p/Agencies']
+
+            for tar in self.targets:
+                self.stats[tar.split('/t5/')[1].split('/')[0]] = {}
+                self.stats[tar.split('/t5/')[1].split('/')[0]]['deletions'] = 0
+                self.stats[tar.split('/t5/')[1].split('/')[0]]['modifications'] = 0
+                self.stats[tar.split('/t5/')[1].split('/')[0]]['user_mods'] = {}
+                self.stats[tar.split('/t5/')[1].split('/')[0]]['user_deletes'] = {}
+
+            self.ref = {}
+            for tar in self.targets:
+                self.ref[tar] = tar.split('/t5/')[1].split('/')[0]
 
         # if '-f' not in sys.argv:
         #     for tar in self.targets:
@@ -73,6 +80,8 @@ class Crawler:
         self.driver.get(tar)
         time.sleep(3)
 
+        category = self.ref[tar]
+
         #Parse pages
         #FIXME: GENESIS BLOCK PAGE CHECK self.get_page_numbers() + 1
         pages = self.get_page_numbers() + 1
@@ -104,16 +113,16 @@ class Crawler:
                 self.driver.get(url)
                 time.sleep(2)
                 self.scraper.update_stats(self.stats)
-                res = self.scraper.make_soup(self.driver.page_source, url, tar)
+                res = self.scraper.make_soup(self.driver.page_source, url, tar, categ=category)
                 if res is not None:
-                    self.stats['deletions'] = self.scraper.stats['deletions']
-                    self.stats['modifications'] = self.scraper.stats['modifications']
+                    self.stats[category]['deletions'] = self.scraper.stats[category]['deletions']
+                    self.stats[category]['modifications'] = self.scraper.stats[category]['modifications']
                     try:
-                        self.stats['user_mods'].update(self.scraper.stats['user_mods'])
+                        self.stats[category]['user_mods'].update(self.scraper.stats[category]['user_mods'])
                     except:
                         print('error updating user modification entries')
                     try:
-                        self.stats['user_deletes'].update(self.scraper.stats['user_deletes'])
+                        self.stats[category]['user_deletes'].update(self.scraper.stats[category]['user_deletes'])
                     except:
                         print('error updating user delete entries')
                     #if res is not None:

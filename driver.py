@@ -26,7 +26,7 @@ class Driver:
         self.logger.addHandler(self.ch)
         self.logger.addHandler(self.fh)
         self.last_scan = None
-        self.scan_start = None
+        self.scan_start = datetime.datetime.now()
 
         #Configure history dictionary and load data into it if possible
         self.hist={}
@@ -442,26 +442,60 @@ class Driver:
                 body += f'{days} days, {hours} hours, and {minutes} minutes since last scan.'
                 body += f'Scan took {durhours} hours, {durmins} minutes'
                 body += 'During the last scan, we encountered: \n\n'
-                deletes = self.stats['deletions']
-                body += f'{deletes} message posts deleted or no longer found\n'
-                mods = self.stats['modifications']
-                body += f'{mods} message posts modified or edited\n\n'
+                for tar in self.stats.keys():
+                    body += f'<---- {tar} ---->'
+                    deletes = self.stats[tar]['deletions']
+                    body += f'{deletes} message posts deleted or no longer found\n'
+                    mods = self.stats[tar]['modifications']
+                    body += f'{mods} message posts modified or edited\n\n'
                 
-                modsli = {}
-                sum_ = 0
-                for key in self.stats['user_mods'].keys():
-                    modsli[key] = self.stats['user_mods'][key]
-                    sum_ += self.stats['user_mods'][key]
-                modsavg = sum_/len(self.users.keys())
-                body += f'Out of {len(self.users.keys())} users, {len(modsli.keys())} had post(s) modified\n'
-                deleteli = {}
-                sum_ = 0
-                for key in self.stats['user_deletes'].keys():
-                    deleteli[key] = self.stats['user_deletes'][key]
-                    sum_ += self.stats['user_deletes'][key]
-                deleteavg = sum_/len(self.users.keys())
-                body += f'Out of {len(self.users.keys())} users, {len(deleteli.keys())} had post(s) deleted\n'
-                #body += '<------------------------------------------------------------------------------>\n'
+                    modsli = {}
+                    sum_ = 0
+                    for key in self.stats[tar]['user_mods'].keys():
+                        modsli[key] = self.stats[tar]['user_mods'][key]
+                        sum_ += self.stats[tar]['user_mods'][key]
+                    modsavg = sum_/len(self.users.keys())
+                    body += f'Out of {len(self.users.keys())} users, {len(modsli.keys())} had post(s) modified\n'
+                    deleteli = {}
+                    sum_ = 0
+                    for key in self.stats[tar]['user_deletes'].keys():
+                        deleteli[key] = self.stats[tar]['user_deletes'][key]
+                        sum_ += self.stats[tar]['user_deletes'][key]
+                    deleteavg = sum_/len(self.users.keys())
+                    body += f'Out of {len(self.users.keys())} users, {len(deleteli.keys())} had post(s) deleted\n'
+                    modranks = {}
+                    delranks = {}
+                    for user in self.users.keys():
+                        if self.users[user]['user_id'] in self.stats[tar]['user_mods']:
+                            if self.users[user]['rank'] in modranks.keys():
+                                if user in modranks[self.users[user]['rank']].keys():
+                                    modranks[self.users[user]['rank']][self.users[user]['user_id']] += 1
+                                else:
+                                    modranks[self.users[user]['rank']][self.users[user]['user_id']] = 1
+                            else:
+                                modranks[self.users[user]['rank']] = {}
+                                modranks[self.users[user]['rank']][self.users[user]['user_id']] = 1
+                        if self.users[user]['user_id'] in self.stats[tar]['user_deletes']:
+                            if self.users[user]['rank'] in delranks.keys():
+                                if user in delranks[self.users[user]['rank']].keys():
+                                    delranks[self.users[user]['rank']][self.users[user]['user_id']] += 1
+                                else:
+                                    delranks[self.users[user]['rank']][self.users[user]['user_id']] = 1
+                            else:
+                                delranks[self.users[user]['rank']] = {}
+                                delranks[self.users[user]['rank']][self.users[user]['user_id']] = 1
+
+                    delranks['total'] = 0
+                    modranks['total'] = 0
+                    for rank in delranks.keys():
+                        for user in delranks[rank].keys():
+                            delranks['total'] += delranks[rank][user]
+                        body += f"Rank {rank} had {modranks['total']} posts deleted"
+
+                    for rank in modranks.keys():
+                        for user in modranks[rank].keys():
+                            modranks['total'] += modranks[rank][user]
+                        body += f"Rank {rank} had {modranks['total']} posts modified"
 
                 body = MIMEText(body)
                 msg.attach(body)
@@ -491,44 +525,97 @@ class Driver:
         print(f'Scan took {durhours} hours, {durmins} minutes')
         print(f'{days} days, {hours} hours, and {minutes} minutes since last scan.')
         print('During the last scan, we encountered: \n')
-        deletes = self.stats['deletions']
-        print(f'[{deletes} message posts deleted or no longer found]')
-        mods = self.stats['modifications']
-        print(f'[{mods} message posts modified or edited]\n')
-        
-        modsli = {}
-        sum_ = 0
-        for key in self.stats['user_mods'].keys():
-            modsli[key] = self.stats['user_mods'][key]
-            sum_ += self.stats['user_mods'][key]
-        modsavg = sum_/len(self.users.keys())
-        #print(f'On average, each user had {modsavg} posts modified since the last scan')
-        print(f'Out of {len(self.users.keys())} users, {len(modsli.keys())} had post(s) modified')
-        deleteli = {}
-        sum_ = 0
-        for key in self.stats['user_deletes'].keys():
-            deleteli[key] = self.stats['user_deletes'][key]
-            sum_ += self.stats['user_deletes'][key]
-        deleteavg = sum_/len(self.users.keys())
-        #print(f'On average, each user had {deleteavg} posts deleted since the last scan')
-        print(f'Out of {len(self.users.keys())} users, {len(deleteli.keys())} had post(s) deleted')
+        gdel = {}
+        gmod = {}
+        for tar in self.stats.keys():
+            gdel[tar] = {}
+            gmod[tar] = {}
+        for tar in self.stats.keys():
+            print(f'<---- {tar} ---->')
+            deletes = self.stats[tar]['deletions']
+            print(f'[{deletes} message posts deleted or no longer found]')
+            mods = self.stats[tar]['modifications']
+            print(f'[{mods} message posts modified or edited]\n')
+            
+            modsli = {}
+            sum_ = 0
+            for key in self.stats[tar]['user_mods'].keys():
+                modsli[key] = self.stats[tar]['user_mods'][key]
+                sum_ += self.stats[tar]['user_mods'][key]
+            modsavg = sum_/len(self.users.keys())
+            #print(f'On average, each user had {modsavg} posts modified since the last scan')
+            print(f'Out of {len(self.users.keys())} users, {len(modsli.keys())} had post(s) modified')
+            deleteli = {}
+            sum_ = 0
+            for key in self.stats[tar]['user_deletes'].keys():
+                deleteli[key] = self.stats[tar]['user_deletes'][key]
+                sum_ += self.stats[tar]['user_deletes'][key]
+            deleteavg = sum_/len(self.users.keys())
+            #print(f'On average, each user had {deleteavg} posts deleted since the last scan')
+            print(f'Out of {len(self.users.keys())} users, {len(deleteli.keys())} had post(s) deleted')
+
+            modranks = {}
+            delranks = {}
+            for user in self.users.keys():
+                if self.users[user]['user_id'] in self.stats[tar]['user_mods']:
+                    if self.users[user]['rank'] in modranks.keys():
+                        if user in modranks[self.users[user]['rank']].keys():
+                            modranks[self.users[user]['rank']][self.users[user]['user_id']] += 1
+                        else:
+                            modranks[self.users[user]['rank']][self.users[user]['user_id']] = 1
+                    else:
+                        modranks[self.users[user]['rank']] = {}
+                        modranks[self.users[user]['rank']][self.users[user]['user_id']] = 1
+                if self.users[user]['user_id'] in self.stats[tar]['user_deletes']:
+                    if self.users[user]['rank'] in delranks.keys():
+                        if user in delranks[self.users[user]['rank']].keys():
+                            delranks[self.users[user]['rank']][self.users[user]['user_id']] += 1
+                        else:
+                            delranks[self.users[user]['rank']][self.users[user]['user_id']] = 1
+                    else:
+                        delranks[self.users[user]['rank']] = {}
+                        delranks[self.users[user]['rank']][self.users[user]['user_id']] = 1
+
+            delranks['total'] = 0
+            modranks['total'] = 0
+            for rank in delranks.keys():
+                for user in delranks[rank].keys():
+                    delranks['total'] += delranks[rank][user]
+                print(f"Rank {rank} had {modranks['total']} posts deleted")
+
+            for rank in modranks.keys():
+                for user in modranks[rank].keys():
+                    modranks['total'] += modranks[rank][user]
+                print(f"Rank {rank} had {modranks['total']} posts modified")
+            gmod[tar].update(modranks)
+            gdel[tar].update(delranks)
+           
+
         if '-f' not in sys.argv:
             i = input('Display deletes/mods for indiv. users? (y/n)')
         else:
             i = 'y'
         if i == 'y':
             used = []
-            for key in modsli.keys():
-                print(f'User {key} had {modsli[key]} posts modified since the last scan')
-                if key in deleteli.keys():
-                    print(f'User {key} also had {deleteli[key]} posts deleted since the last scan')
-                    used.append(key)
-
-            print('Remaining deletions detected w/o related mod: ')
-            for key in deleteli.keys():
-                if key not in used:
-                    print(f'User {key} had {deleteli[key]} posts deleted since the last scan')
-
+            for tar in gmod.keys():
+                for rank in gmod.keys():
+                    for user in gmod[rank].keys():
+                        name = ''
+                        for u in self.users.keys():
+                            if self.users[u]['user_id'] == user:
+                                name = u
+                                break
+                        print(f'User {name}({user}) had {gmod[tar][rank][user]} posts modified in category{tar}')
+            
+            for tar in gdel.keys():
+                for rank in gdel.keys():
+                    for user in gdel[rank].keys():
+                        name = ''
+                        for u in self.users.keys():
+                            if self.users[u]['user_id'] == user:
+                                name = u
+                                break
+                        print(f'User {name}({user}) had {gdel[tar][rank][user]} posts deleted in category {tar}')
         else:
             pass
         print('<------------------------------------------------------------------------------>')
