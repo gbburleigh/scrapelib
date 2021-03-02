@@ -488,16 +488,16 @@ class Driver:
                     delranks['total'] = 0
                     modranks['total'] = 0
                     for rank in delranks.keys():
+                        if rank == 'total':
+                            continue
                         for user in delranks[rank].keys():
-                            if user == 'total':
-                                continue
                             delranks['total'] += delranks[rank][user]
                         body += f"Rank {rank} had {modranks['total']} posts deleted"
 
                     for rank in modranks.keys():
+                        if rank == 'total':
+                            continue
                         for user in modranks[rank].keys():
-                            if user == 'total':
-                                continue
                             modranks['total'] += modranks[rank][user]
                         body += f"Rank {rank} had {modranks['total']} posts modified"
 
@@ -583,16 +583,16 @@ class Driver:
             delranks['total'] = 0
             modranks['total'] = 0
             for rank in delranks.keys():
+                if rank == 'total':
+                    continue
                 for user in delranks[rank].keys():
-                    if user == 'total':
-                        continue
                     delranks['total'] += delranks[rank][user]
                 print(f"Rank {rank} had {modranks['total']} posts deleted")
 
             for rank in modranks.keys():
+                if rank == 'total':
+                    continue
                 for user in modranks[rank].keys():
-                    if user == 'total':
-                        continue
                     modranks['total'] += modranks[rank][user]
                 print(f"Rank {rank} had {modranks['total']} posts modified")
             gmod[tar].update(modranks)
