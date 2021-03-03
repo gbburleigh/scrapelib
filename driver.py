@@ -153,6 +153,15 @@ class Driver:
                     self.genesis[category_url] = None
 
             print('Acquired genesis urls: {}'.format(self.genesis))
+
+    def go(self):
+        try:
+            data = self.run()
+            return data
+        except Exception as e:
+            self.email_results(warn=True, excep=e)
+            self.close()
+            return
         
     def run(self):
 
@@ -221,7 +230,13 @@ class Driver:
             for f in filenames:
                 os.remove(os.getcwd() + f'/cache/sys/stats/{f}')
             self.logger.warning('Flushed stats files successfully')
-        else:self.logger.warning('No stats files to remove')
+        else:
+            self.logger.warning('No stats files to remove')
+
+    def flush(self):
+        self.flush_cache()
+        self.flush_csv()
+        self.flush_stats()
    
     def close(self):
         #Cleans up webdriver processes and exits program
@@ -372,7 +387,7 @@ class Driver:
         else:
             self.last_scan = datetime.datetime.now()
 
-    def email_results(self, warn=False):
+    def email_results(self, warn=False, excep=None):
         """Emails csv results to designated addresses. Consider pulling addresses to driver class member
         for portability."""
 
@@ -515,10 +530,13 @@ class Driver:
                 attachment.add_header("Content-Disposition", "attachment", filename=fileToSend)
                 msg.attach(attachment)
             else:
-                body = 'This is a message informing you that something went wrong with Geckodriver while configuring your webdriver.\n'
-                body += "Usually this is due to processes not closing properly from previous sessions. Try using lsof [path to .wdm]/.wdm/drivers/geckodriver/linux64/v0.29.0/geckodriver' and 'kill' each pid listed"
-                body += 'You may have found this already while running manually, otherwise log onto Quest and fix it'
-                body += "We'll have a patch for this soon, thanks for bearing with me."
+                # body = 'This is a message informing you that something went wrong with Geckodriver while configuring your webdriver.\n'
+                # body += "Usually this is due to processes not closing properly from previous sessions. Try using lsof [path to .wdm]/.wdm/drivers/geckodriver/linux64/v0.29.0/geckodriver' and 'kill' each pid listed"
+                # body += 'You may have found this already while running manually, otherwise log onto Quest and fix it'
+                # body += "We'll have a patch for this soon, thanks for bearing with me."
+                if excep is not None:
+                    body += f'Scan terminated due to exception: {f}'
+                body += 'Something went wrong during the scan. Go fix it!'
                 body = MIMEText(body)
                 msg.attach(body)
             #Send package
@@ -641,11 +659,10 @@ if __name__ == "__main__":
     #Run test functions
     d = Driver()
     if '-flush' in sys.argv:
-        d.flush_cache()
-        d.flush_csv()
+        d.flush()
     try:
         if '--config' not in sys.argv:
-            data = d.run()
+            data = d.go()
             d.write_csv(data)
             d.email_results()
             d.report_stats()
