@@ -142,8 +142,11 @@ class ThreadScraper:
                     .text.replace(' ', '').strip()
                 timestamp = msg.find('span', class_='DateTime lia-message-posted-on lia-component-common-widget-date')\
                             .find('span', class_='message_post_text').text
-                editdate = str(msg.find('span', class_='DateTime lia-message-edited-on lia-component-common-widget-date')\
-                            .find('span', class_='message_post_text').text)
+                try:
+                    editdate = msg.find('span', class_='DateTime lia-message-edited-on lia-component-common-widget-date')\
+                                .find('span', class_='message_post_text').text
+                except:
+                    editdate = ''
                 postdate = str(timestamp)
                 try:
                     postdate = postdate.split(' AM')[0]
