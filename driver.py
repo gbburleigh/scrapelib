@@ -632,8 +632,8 @@ class Driver:
         if i == 'y':
             used = []
             for tar in gmod.keys():
-                for rank in gmod.keys():
-                    for user in gmod[rank].keys():
+                for rank in gmod[tar].keys():
+                    for user in gmod[tar][rank].keys():
                         name = ''
                         for u in self.users.keys():
                             if self.users[u]['user_id'] == user:
@@ -642,8 +642,8 @@ class Driver:
                         print(f'User {name}({user}) had {gmod[tar][rank][user]} posts modified in category{tar}')
             
             for tar in gdel.keys():
-                for rank in gdel.keys():
-                    for user in gdel[rank].keys():
+                for rank in gdel[tar].keys():
+                    for user in gdel[tar][rank].keys():
                         name = ''
                         for u in self.users.keys():
                             if self.users[u]['user_id'] == user:
