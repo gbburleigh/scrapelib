@@ -171,7 +171,7 @@ class ThreadScraper:
                     self.users[name] = {'user_id': user_id, 'user_url': _url, 'member_since': member_since, 'rank': rank}
                 else:
                     user_id = self.users[name]['user_id']
-                if datetime.datetime.strptime(postdate, '%m-%d-%Y %H:%M') <= oldest:
+                if dt <= oldest:
                     if (now-dt).days > 7:
                         expired = True
                         break
