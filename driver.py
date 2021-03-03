@@ -214,6 +214,14 @@ class Driver:
             self.logger.warning('Flushed .csv files successfully')
         else:
             self.logger.warning('No .csv files to remove, continuing...')
+
+    def flush_stats(self):
+        _, _, filenames = next(os.walk(os.getcwd() + '/cache/sys/stats'))
+        if len(filenames) > 0:
+            for f in filenames:
+                os.remove(os.getcwd() + f'/cache/sys/stats/{f}')
+            self.logger.warning('Flushed stats files successfully')
+        else:self.logger.warning('No stats files to remove')
    
     def close(self):
         #Cleans up webdriver processes and exits program
@@ -297,7 +305,7 @@ class Driver:
                                                 #print(f'Found message was deleted with text: \n {msg[1]}')
                                                 f.writerow([data[category_url][thread_url]['title'],\
                                                 data[category_url][thread_url]['post_date'], \
-                                                data[category_url][thread_url]['edit_date'], \
+                                                msg[3], \
                                                 key, rank, msg[1], latest-1, \
                                                 msg[0], '<--Deleted-->'])
                                                 found = True
@@ -312,7 +320,7 @@ class Driver:
                             #Write row to csv
                                 f.writerow([data[category_url][thread_url]['title'],\
                                 data[category_url][thread_url]['post_date'], \
-                                data[category_url][thread_url]['edit_date'], \
+                                message[3], \
                                 key, rank, message[1], latest, \
                                 message[0], edited])
 

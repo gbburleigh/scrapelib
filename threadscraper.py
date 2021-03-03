@@ -66,10 +66,17 @@ class ThreadScraper:
                                         'rank': userdata['rank']}
             except:
                 pass
-
+        
+        oldest = datetime.datetime.now()
+        oldmsg = None
         if hist_partition is not None:
             try:
                 version = hist_partition[url]['update_version']
+                for msg in hist_partition[url]['messages'][version - 1]:
+                    obj = datetime.datetime.strptime(msg[0], '%m-%d-%Y %H:%M')
+                    if oldest > obj:
+                        oldest = obj
+                        oldmsg = msg
             except:
                 version = 0
         else:
@@ -85,21 +92,6 @@ class ThreadScraper:
                 .find('span', class_='message_post_text').text
         except:
             self.logger.warning(traceback.format_exc())
-
-        # d = str(post_date)
-        # try:
-        #     d = d.split(' AM')[0]
-        # except:
-        #     pass
-        # try:
-        #     d = d.split(' PM')[0]
-        # except:
-        #     pass
-        # date_format = "%b %d, %Y %H:%M:%S"
-        # dt = datetime.datetime.strptime(d, date_format)
-        # input((datetime.datetime.now()-dt).days)
-        # if (datetime.datetime.now()-dt).days > 7:
-        #     return {}
         try:
             edit_date = self.soup.find('span', class_='DateTime lia-message-edited-on lia-component-common-widget-date')\
                 .find('span', class_='message_post_text').text
@@ -113,8 +105,6 @@ class ThreadScraper:
         else:
             end = 1
         msg_cache = {}
-        # if pages > 10:
-        #     pages = 10
         now = datetime.datetime.now()
         debugli = []
         for pagenum in range(start, end - 1, -1):
@@ -152,6 +142,8 @@ class ThreadScraper:
                     .text.replace(' ', '').strip()
                 timestamp = msg.find('span', class_='DateTime lia-message-posted-on lia-component-common-widget-date')\
                             .find('span', class_='message_post_text').text
+                editdate = str(msg.find('span', class_='DateTime lia-message-edited-on lia-component-common-widget-date')\
+                            .find('span', class_='message_post_text').text)
                 postdate = str(timestamp)
                 try:
                     postdate = postdate.split(' AM')[0]
@@ -161,17 +153,25 @@ class ThreadScraper:
                     postdate = postdate.split(' PM')[0]
                 except:
                     pass
+                try:
+                    editdate = postdate.split(' AM')[0]
+                except:
+                    pass
+                try:
+                    editdate = postdate.split(' PM')[0]
+                except:
+                    pass
                 date_format = "%b %d, %Y %H:%M:%S"
                 dt = datetime.datetime.strptime(postdate, date_format)
-                if (now-dt).days > 7:
-                    expired = True
-                    break
                 if name not in self.users.keys():
                     user_id = uuid.uuid4().hex[:8]
                     self.users[name] = {'user_id': user_id, 'user_url': _url, 'member_since': member_since, 'rank': rank}
                 else:
                     user_id = self.users[name]['user_id']
-
+                if datetime.datetime.strptime(postdate, '%m-%d-%Y %H:%M') <= oldest:
+                    if (now-dt).days > 7:
+                        expired = True
+                        break
                 if self.debug_mode is True:
                     debugli.append(user_id)
                 body = msg.find('div', class_='lia-message-body-content').find_all('p')
@@ -202,12 +202,12 @@ class ThreadScraper:
                     mid = int(hashlib.sha1(post.encode("utf-8")).hexdigest(), 16) % (10 ** 8)
                     if user_id in messages.keys():
                         if str(version) in messages[user_id].keys():
-                            messages[user_id][str(version)].append((timestamp, post, edit_status))
+                            messages[user_id][str(version)].append((timestamp, post, edit_status, editdate))
                         else:
-                            messages[user_id][str(version)] = [(timestamp, post, edit_status)]
+                            messages[user_id][str(version)] = [(timestamp, post, edit_status, editdate)]
                     else:
                         messages[user_id] = {}
-                        messages[user_id][str(version)] = [(timestamp, post, edit_status)]
+                        messages[user_id][str(version)] = [(timestamp, post, edit_status, editdate)]
 
                     if user_id not in msg_cache.keys():
                         msg_cache[user_id] = [post]
@@ -255,7 +255,7 @@ class ThreadScraper:
                                     self.stats[category]['user_deletes'][user_id] += 1
                                 else:
                                     self.stats[category]['user_deletes'][user_id] = 1
-                                messages[user_id][str(version)].append((timestamp, '<--Deleted-->', '<--Deleted-->'))
+                                messages[user_id][str(version)].append((timestamp, '<--Deleted-->', '<--Deleted-->', 'Deleted in last day'))
                         else:
                             if user_id in messages.keys() and str(version) in messages[user_id].keys():
                                 self.stats[category]['deletions'] += 1
@@ -263,7 +263,7 @@ class ThreadScraper:
                                     self.stats[category]['user_deletes'][user_id] += 1
                                 else:
                                     self.stats[category]['user_deletes'][user_id] = 1
-                                messages[user_id][str(version)].append((timestamp, '<--Deleted-->', '<--Deleted-->'))
+                                messages[user_id][str(version)].append((timestamp, '<--Deleted-->', '<--Deleted-->', 'Deleted in last day'))
                             else:
                                 self.stats[category]['deletions'] += 1
                                 if user_id in self.stats[category]['user_deletes'].keys():
@@ -271,7 +271,7 @@ class ThreadScraper:
                                 else:
                                     self.stats[category]['user_deletes'][user_id] = 1
                                 messages[user_id] = {}
-                                messages[user_id][str(version)] = [(timestamp, '<--Deleted-->', '<--Deleted-->')]
+                                messages[user_id][str(version)] = [(timestamp, '<--Deleted-->', '<--Deleted-->', 'Deleted in last day')]
 
         pkg = {}
         pkg['pkg_creation_stamp'] = str(datetime.datetime.now())
