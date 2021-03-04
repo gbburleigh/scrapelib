@@ -115,12 +115,17 @@ class Driver:
             f.write(json.dumps(self.stats))
 
     def read_stats(self):
-        try:
-            with open(os.getcwd() + f'/cache/sys/stats/{datetime.datetime.now().strftime("%Y-%m-%d")}.json', 'r') as f:
-                self.stats = json.load(f)
-        except Exception as e:
-            print(e)
-            self.logger.warning('Error while loading stats for today!')
+        _, _, filenames = next(os.walk(os.getcwd() + '/cache/sys/stats'))
+        if len(filenames) > 0:
+            newest = max([fn.replace('.json', '') for fn in filenames])
+            if datetime.datetime.today().strftime('%A') != 'Sunday':
+                try:
+                    with open(os.getcwd() + f'/cache/sys/stats/{newest}.json', 'r') as f:
+                        self.stats = json.load(f)
+                        self.logger.info('Loaded stats successfully')
+                except Exception as e:
+                    print(e)
+                    self.logger.warning('Error while loading stats for today!')
 
 
     def find_oldest_post(self):
@@ -157,6 +162,7 @@ class Driver:
     def go(self):
         try:
             data = self.run()
+            self.write_stats()
             return data
         except Exception as e:
             self.email_results(warn=True, excep=e)
@@ -633,6 +639,8 @@ class Driver:
             used = []
             for tar in gmod.keys():
                 for rank in gmod[tar].keys():
+                    if rank == 'total':
+                        continue
                     for user in gmod[tar][rank].keys():
                         name = ''
                         for u in self.users.keys():
@@ -643,6 +651,8 @@ class Driver:
             
             for tar in gdel.keys():
                 for rank in gdel[tar].keys():
+                    if rank == 'total':
+                        continue
                     for user in gdel[tar][rank].keys():
                         name = ''
                         for u in self.users.keys():
@@ -653,7 +663,6 @@ class Driver:
         else:
             pass
         print('<------------------------------------------------------------------------------>')
-        self.write_stats()
 
 if __name__ == "__main__":
     #Run test functions
