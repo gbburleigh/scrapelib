@@ -311,6 +311,10 @@ class Driver:
                             if data[category_url][thread_url]['contributors'][entry]['user_id'] == key:
                                 rank = data[category_url][thread_url]['contributors'][entry]['rank']
                         if rank == '':
+                            for entry in self.users.keys():
+                                if self.users[entry]['user_id'] == key:
+                                    rank = self.users[entry]['rank']
+                        if rank == '':
                             print(f'Rank for user {key} not found')
                             # print(f"User had information: {data[category_url][thread_url]['contributors'][entry]}")
                         

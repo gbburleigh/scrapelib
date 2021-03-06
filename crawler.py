@@ -169,10 +169,10 @@ class Crawler:
             #We've hit the last post, let's exit    
             # if self.reached_genesis is True:
             #     return pkg
-        #self.users.update(pkg[url]['contributors'])
-        for key in pkg[url]['contributors'].keys():
-            if key not in self.users.keys():
-                self.users[key] = pkg[url]['contributors'][key]
+        self.users.update(pkg[url]['contributors'])
+        # for key in pkg[url]['contributors'].keys():
+        #     if key not in self.users.keys():
+        #         self.users[key] = pkg[url]['contributors'][key]
                 
         return pkg
 

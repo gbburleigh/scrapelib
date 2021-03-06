@@ -179,9 +179,6 @@ class ThreadScraper:
                         #del self.users[name]
                         #self.users[name] = {'user_id': abs(hash(name)) % (10 ** 8), 'user_url': _url, 'member_since': member_since, 'rank': rank}
                     contributors[name] = self.users[name]
-                if (now-dt).days > 7:
-                    expired = True
-                    break
                 if self.debug_mode is True:
                     debugli.append(user_id)
                 body = msg.find('div', class_='lia-message-body-content').find_all(['p', 'ul'])
@@ -238,6 +235,10 @@ class ThreadScraper:
                                 old = hist_partition[url]['messages'][user_id][str(key)]
                                 messages[user_id][str(key)] = old.copy()
 
+                if (now-dt).days > 7 and (timestamp, post, edit_status, editdate) == oldmsg:
+                    expired = True
+                    break
+
             if expired is True:
                 break
 
@@ -261,35 +262,47 @@ class ThreadScraper:
             except:
                 pass
             
+        #We've seen this thread before, and we have some data saved
         if version > 1 and hist_partition is not None:
-            for user_id in hist_partition[url]['messages'].keys():
-                for v in hist_partition[url]['messages'][user_id].keys():
-                    hist_tups = [x for x in hist_partition[url]['messages'][user_id][v]]
-                    for tup in hist_tups:
-                        timestamp = tup[0]
-                        msgpost = tup[1]
-                        edit_status = tup[2]
-                        if user_id in messages.keys() and str(version) in messages[user_id].keys():
-                            new_tups = [x for x in messages[user_id][str(version)]]
-                            obj = []
-                            for tup_ in new_tups:
-                                obj.append(tup_[0])
-                            if timestamp not in obj:
-                                self.stats[category]['deletions'] += 1
-                                if user_id in self.stats[category]['user_deletes'].keys():
-                                    self.stats[category]['user_deletes'][user_id] += 1
-                                else:
-                                    self.stats[category]['user_deletes'][user_id] = 1
-                                messages[user_id][str(version)].append((timestamp, msgpost, '<--Deleted-->', 'Deleted in last day'))
-                        else:
+            #If we have data saved about this thread
+            if url in hist_partition.keys():
+                #Iterate through each user's messages
+                for user_id in hist_partition[url]['messages'].keys():
+                    v = version - 1
+                    #Get the last version, if its available
+                    if str(v) in hist_partition[url]['messages'][user_id].keys():
+                        #Make a list of each post for this user
+                        hist_tups = [x for x in hist_partition[url]['messages'][user_id][v]]
+                        #For each msg object
+                        for tup in hist_tups:
+                            timestamp = tup[0]
+                            msgpost = tup[1]
+                            edit_status = tup[2]
+                            #If we have this user's ID in our messages
                             if user_id in messages.keys() and str(version) in messages[user_id].keys():
-                                self.stats[category]['deletions'] += 1
-                                if user_id in self.stats[category]['user_deletes'].keys():
-                                    self.stats[category]['user_deletes'][user_id] += 1
-                                else:
-                                    self.stats[category]['user_deletes'][user_id] = 1
-                                messages[user_id][str(version)].append((timestamp, msgpost, '<--Deleted-->', 'Deleted in last day'))
+                                #Get their messages
+                                new_tups = [x for x in messages[user_id][str(version)]]
+                                obj = []
+                                for tup_ in new_tups:
+                                    obj.append(tup_[0])
+                                #We don't have a message with the given timestamp, so it must have been deleted
+                                if timestamp not in obj and edit_status != '<--Deleted-->':
+                                    #Handle deletion
+                                    self.stats[category]['deletions'] += 1
+                                    if user_id in self.stats[category]['user_deletes'].keys():
+                                        self.stats[category]['user_deletes'][user_id] += 1
+                                    else:
+                                        self.stats[category]['user_deletes'][user_id] = 1
+                                    messages[user_id][str(version)].append((timestamp, msgpost, '<--Deleted-->', 'Deleted in last day'))
                             else:
+                                # if user_id in messages.keys() and str(version) in messages[user_id].keys():
+                                #     self.stats[category]['deletions'] += 1
+                                #     if user_id in self.stats[category]['user_deletes'].keys():
+                                #         self.stats[category]['user_deletes'][user_id] += 1
+                                #     else:
+                                #         self.stats[category]['user_deletes'][user_id] = 1
+                                #     messages[user_id][str(version)].append((timestamp, msgpost, '<--Deleted-->', 'Deleted in last day'))
+                                #else:
                                 self.stats[category]['deletions'] += 1
                                 if user_id in self.stats[category]['user_deletes'].keys():
                                     self.stats[category]['user_deletes'][user_id] += 1
