@@ -36,8 +36,7 @@ class Crawler:
         if debug is True:
             self.max_posts = 20
         else:
-            #self.max_posts = 100000000
-            self.max_posts = 15
+            self.max_posts = 100000000
 
         self.debug = debug
 
@@ -103,14 +102,10 @@ class Crawler:
         time.sleep(3)
 
         category = self.ref[tar]
-        posts = 0
-
         #Parse pages
         #FIXME: GENESIS BLOCK PAGE CHECK self.get_page_numbers() + 1
         pages = self.get_page_numbers() + 1
         for currentpage in range(1, self.max_page_scroll):
-            if posts >= self.max_posts:
-                break
             if currentpage == 1:
                 pass
             else:
@@ -139,7 +134,6 @@ class Crawler:
                 time.sleep(2)
                 self.scraper.update_stats(self.stats)
                 res = self.scraper.make_soup(self.driver.page_source, url, self.users,tar=tar, categ=category)
-                posts += 1
                 if res is not None:
                     try:
                         deletions = self.scraper.stats[category]['deletions']

@@ -26,11 +26,11 @@ class Driver:
         self.logger.addHandler(self.ch)
         self.logger.addHandler(self.fh)
         self.last_scan = datetime.datetime.now()
-        if start is None:
-            self.scan_start = datetime.datetime.now()
-        else:
-            self.scan_start = start
+        now = datetime.datetime.now()
+        self.scan_start = now
+        self.logger.warning(f'Configured, beginning scan at {self.scan_start}')
 
+        #Load backend if we aren't flushing, otherwise restart cache
         if flush is False:
             #Configure history dictionary and load data into it if possible
             self.hist, self.stats, self.users, self.genesis = {}, {}, {}, {}
@@ -40,12 +40,10 @@ class Driver:
             self.read_stats()
             self.ref = {}
 
-            """DEPRECATED"""
             self.find_oldest_post()
         else:
             self.flush()
             self.hist, self.stats, self.users, self.genesis = {}, {}, {}, {}
-        #self.read_genesis()
 
         #Configure webdriver
         if '-f' in sys.argv:
@@ -142,7 +140,6 @@ class Driver:
                 for thread_url in self.hist[category_url].keys():
                     if thread_url == 'timestamp':
                         continue
-                    #print(self.hist[category_url][thread_url])
                     timestamp = self.hist[category_url][thread_url]['post_date']
                     postdate = str(timestamp)
                     try:
@@ -203,7 +200,7 @@ class Driver:
         for user in crawler.users.keys():
             if user not in self.users.keys():
                 self.users[user] = crawler.users[user]
-        self.scan_start = datetime.datetime.now()
+        #self.scan_start = datetime.datetime.now()
         
         #Cleanup cache
         _, _, filenames = next(os.walk(os.getcwd() + '/cache/logs'))
@@ -261,9 +258,6 @@ class Driver:
         self.webdriver.quit()
         self.logger.critical('Closing...')
         sys.exit()
-
-    def save_users(self):
-        pass
 
     def write_csv(self, data):
         """Writes json data to csv file in cache"""
@@ -490,8 +484,9 @@ class Driver:
                 body = ''
 
                 #body += '<------------------------------------------------------------------------------>\n'
-                diff = datetime.datetime.now() - self.last_scan
-                dur = datetime.datetime.now() - self.scan_start
+                now = datetime.datetime.now()
+                diff = now - self.last_scan
+                dur =  now - self.scan_start
                 durdays, durhours, durmins = dur.days, dur.seconds // 3600, dur.seconds // 60 % 60
                 days, hours, minutes = diff.days, diff.seconds // 3600, diff.seconds // 60 % 60
                 body += f'{days} days, {hours} hours, and {minutes} minutes since last scan.'
@@ -580,10 +575,11 @@ class Driver:
 
     def report_stats(self):
         print('<------------------------------------------------------------------------------>')
-        print(f'Started at {self.scan_start}')
-        print(f'Now: {datetime.datetime.now()}')
-        diff = datetime.datetime.now() - self.last_scan
-        dur = datetime.datetime.now() - self.scan_start
+        # print(f'Started at {self.scan_start}')
+        # print(f'Now: {datetime.datetime.now()}')
+        now = datetime.datetime.now()
+        diff = now - self.last_scan
+        dur =  now - self.scan_start
         durdays, durhours, durmins = dur.days, dur.seconds // 3600, dur.seconds // 60 % 60
         days, hours, minutes = diff.days, diff.seconds // 3600, diff.seconds // 60 % 60
         print(f'Scan took {durhours} hours, {durmins} minutes')
@@ -675,7 +671,7 @@ class Driver:
                             if self.users[u]['user_id'] == user:
                                 name = u
                                 break
-                        print(f'User {name}({user}) had {gmod[tar][rank][user]} posts modified in category{tar}')
+                        print(f'User {name}({user}) had {gmod[tar][rank][user]} posts modified in category {tar}')
             
             for tar in gdel.keys():
                 for rank in gdel[tar].keys():
