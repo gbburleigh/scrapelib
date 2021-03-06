@@ -3,8 +3,8 @@ from threadscraper import ThreadScraper
 from selenium.common.exceptions import StaleElementReferenceException
 
 class Crawler:
-    def __init__(self, driver, hist, target=None, genesis=None,\
-                max_page_scroll=15, debug=False):
+    def __init__(self, driver, hist, target='upwork', genesis=None,\
+                max_page_scroll=20, debug=False, post_lim=None):
         #Inherit objects and instantiate scraper class
         self.driver = driver
         self.logger = logging.getLogger(__name__)
@@ -16,29 +16,51 @@ class Crawler:
         self.hist = hist
         self.reached_genesis = False
         self.stats = {}
+        self.users = {}
+        self.lim = post_lim
+        if hist is not None:
+            print('Loaded hist')
+            try:
+                for target in self.hist.keys():
+                    for url in self.hist[target].keys():
+                        for user, userdata in self.hist[target][url]['contributors'].items():
+                            self.users[user] = {'user_id': userdata['user_id'], \
+                                                'user_url':userdata['user_url'], \
+                                                'member_since': userdata['member_since'], \
+                                                'rank': userdata['rank']}
+            except:
+                pass
         self.skipped = ['https://community.upwork.com/t5/Announcements/Welcome-to-the-Upwork-Community/td-p/1']
-        self.scraper = ThreadScraper(self.driver, self.hist, debug=debug)
+        self.scraper = ThreadScraper(self.driver, self.hist, debug=debug, users=self.users)
         print(f'Debug mode ={debug}')
+        if debug is True:
+            self.max_posts = 20
+        else:
+            #self.max_posts = 100000000
+            self.max_posts = 15
+
+        self.debug = debug
 
         #Get targets
         if target is None and '-f' not in sys.argv:
             raise FileNotFoundError
-        if target == 'upwork':
-            self.targets = ['https://community.upwork.com/t5/Freelancers/bd-p/freelancers',\
-                            #'https://community.upwork.com/t5/Announcements/bd-p/news',\
-                            'https://community.upwork.com/t5/Clients/bd-p/clients', \
-                            'https://community.upwork.com/t5/Agencies/bd-p/Agencies']
+        self.targets = ['https://community.upwork.com/t5/Freelancers/bd-p/freelancers',\
+                        #'https://community.upwork.com/t5/Announcements/bd-p/news',\
+                        'https://community.upwork.com/t5/Clients/bd-p/clients', \
+                        'https://community.upwork.com/t5/Agencies/bd-p/Agencies']
+        #if target == 'upwork':
+        for tar in self.targets:
+            self.stats[tar.split('/t5/')[1].split('/')[0]] = {}
+            self.stats[tar.split('/t5/')[1].split('/')[0]]['deletions'] = 0
+            self.stats[tar.split('/t5/')[1].split('/')[0]]['modifications'] = 0
+            self.stats[tar.split('/t5/')[1].split('/')[0]]['user_mods'] = {}
+            self.stats[tar.split('/t5/')[1].split('/')[0]]['user_deletes'] = {}
 
-            for tar in self.targets:
-                self.stats[tar.split('/t5/')[1].split('/')[0]] = {}
-                self.stats[tar.split('/t5/')[1].split('/')[0]]['deletions'] = 0
-                self.stats[tar.split('/t5/')[1].split('/')[0]]['modifications'] = 0
-                self.stats[tar.split('/t5/')[1].split('/')[0]]['user_mods'] = {}
-                self.stats[tar.split('/t5/')[1].split('/')[0]]['user_deletes'] = {}
+        print(f'Crawler stats keys {self.stats.keys()}')
 
-            self.ref = {}
-            for tar in self.targets:
-                self.ref[tar] = tar.split('/t5/')[1].split('/')[0]
+        self.ref = {}
+        for tar in self.targets:
+            self.ref[tar] = tar.split('/t5/')[1].split('/')[0]
 
         # if '-f' not in sys.argv:
         #     for tar in self.targets:
@@ -81,11 +103,14 @@ class Crawler:
         time.sleep(3)
 
         category = self.ref[tar]
+        posts = 0
 
         #Parse pages
         #FIXME: GENESIS BLOCK PAGE CHECK self.get_page_numbers() + 1
         pages = self.get_page_numbers() + 1
         for currentpage in range(1, self.max_page_scroll):
+            if posts >= self.max_posts:
+                break
             if currentpage == 1:
                 pass
             else:
@@ -95,7 +120,7 @@ class Crawler:
             self.logger.info(f'Current category pagenum {currentpage}')
             #Get all thread links on current page
             urls = self.get_links("//a[@class='page-link lia-link-navigation lia-custom-event']")
-            
+
             #Iterate through each thread
             for url in urls:
                 if url in self.skipped:
@@ -113,10 +138,19 @@ class Crawler:
                 self.driver.get(url)
                 time.sleep(2)
                 self.scraper.update_stats(self.stats)
-                res = self.scraper.make_soup(self.driver.page_source, url, tar, categ=category)
+                res = self.scraper.make_soup(self.driver.page_source, url, self.users,tar=tar, categ=category)
+                posts += 1
                 if res is not None:
-                    self.stats[category]['deletions'] = self.scraper.stats[category]['deletions']
-                    self.stats[category]['modifications'] = self.scraper.stats[category]['modifications']
+                    try:
+                        deletions = self.scraper.stats[category]['deletions']
+                        self.stats[category]['deletions'] = deletions
+                    except:
+                        pass
+                    try:
+                        mods = self.scraper.stats[category]['modifications']
+                        self.stats[category]['modifications'] = mods
+                    except:
+                        pass
                     try:
                         self.stats[category]['user_mods'].update(self.scraper.stats[category]['user_mods'])
                     except:
@@ -132,13 +166,20 @@ class Crawler:
 
                     except KeyError:
                         pkg[url] = res
+
+                    if self.lim is not None:
+                        break
                 else:
                     self.logger.critical(f'Something went wrong while parsing url {url}')
 
             #We've hit the last post, let's exit    
             # if self.reached_genesis is True:
             #     return pkg
-
+        #self.users.update(pkg[url]['contributors'])
+        for key in pkg[url]['contributors'].keys():
+            if key not in self.users.keys():
+                self.users[key] = pkg[url]['contributors'][key]
+                
         return pkg
 
     def generate_next(self, url, _iter):

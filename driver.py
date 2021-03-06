@@ -11,7 +11,7 @@ from selenium import webdriver
 from crawler import Crawler
 
 class Driver:
-    def __init__(self):
+    def __init__(self, flush=False):
 
         #Configure logger
         self.logger = logging.getLogger(__name__)
@@ -25,21 +25,23 @@ class Driver:
         self.ch.setFormatter(self.formatter)
         self.logger.addHandler(self.ch)
         self.logger.addHandler(self.fh)
-        self.last_scan = None
+        self.last_scan = datetime.datetime.now()
         self.scan_start = datetime.datetime.now()
 
-        #Configure history dictionary and load data into it if possible
-        self.hist={}
-        self.load_history()
+        if flush is False:
+            #Configure history dictionary and load data into it if possible
+            self.hist, self.stats, self.users, self.genesis = {}, {}, {}, {}
+            self.load_history()
 
-        #Instantiate backend tracking fields
-        self.stats = {}
-        self.read_stats()
-        self.users = {}
+            #Instantiate backend tracking fields
+            self.read_stats()
+            self.ref = {}
 
-        """DEPRECATED"""
-        self.genesis = {}
-        self.find_oldest_post()
+            """DEPRECATED"""
+            self.find_oldest_post()
+        else:
+            self.flush()
+            self.hist, self.stats, self.users, self.genesis = {}, {}, {}, {}
         #self.read_genesis()
 
         #Configure webdriver
@@ -132,24 +134,25 @@ class Driver:
         if self.hist is not None and type(self.hist) == dict:
             li = []
             for category_url in self.hist.keys():
-                if category_url != 'timestamp':
-                    for thread_url in self.hist[category_url].keys():
-                        if thread_url == 'timestamp':
-                            continue
-                        #print(self.hist[category_url][thread_url])
-                        timestamp = self.hist[category_url][thread_url]['post_date']
-                        postdate = str(timestamp)
-                        try:
-                            postdate = postdate.split(' AM')[0]
-                        except:
-                            pass
-                        try:
-                            postdate = postdate.split(' PM')[0]
-                        except:
-                            pass
-                        date_format = "%b %d, %Y %H:%M:%S"
-                        dt = datetime.datetime.strptime(postdate, date_format)
-                        li.append((thread_url, dt))
+                if category_url == 'timestamp':
+                    continue
+                for thread_url in self.hist[category_url].keys():
+                    if thread_url == 'timestamp':
+                        continue
+                    #print(self.hist[category_url][thread_url])
+                    timestamp = self.hist[category_url][thread_url]['post_date']
+                    postdate = str(timestamp)
+                    try:
+                        postdate = postdate.split(' AM')[0]
+                    except:
+                        pass
+                    try:
+                        postdate = postdate.split(' PM')[0]
+                    except:
+                        pass
+                    date_format = "%b %d, %Y %H:%M:%S"
+                    dt = datetime.datetime.strptime(postdate, date_format)
+                    li.append((thread_url, dt))
                 try:
                     li = sorted(li, key=lambda x: x[1])
                     oldest_url = li[0][0]
@@ -180,17 +183,23 @@ class Driver:
         self.logger.info('Beginning scan at {}'.format(socket.gethostname()))
 
         #Instantiate crawler
+        lim = None
+        if '-l' in sys.argv:
+            lim=1
         if '-d' in sys.argv:
             crawler = Crawler(self.webdriver, self.hist, target='upwork', \
-                debug=True, genesis=self.genesis)
+                debug=True, genesis=self.genesis, post_lim=lim)
         else:
-            crawler = Crawler(self.webdriver, self.hist, target='upwork', genesis=self.genesis)
+            crawler = Crawler(self.webdriver, self.hist, target='upwork', genesis=self.genesis, post_lim=lim)
 
         #Fetch crawler data
         data = crawler.crawl()
 
         self.stats = crawler.stats
-
+        self.users.update(crawler.users)
+        for user in crawler.users.keys():
+            if user not in self.users.keys():
+                self.users[user] = crawler.users[user]
         self.scan_start = datetime.datetime.now()
         
         #Cleanup cache
@@ -250,12 +259,17 @@ class Driver:
         self.logger.critical('Closing...')
         sys.exit()
 
+    def save_users(self):
+        pass
+
     def write_csv(self, data):
         """Writes json data to csv file in cache"""
         
         #Ensure data is in json/dict format
         if type(data) != dict:
             data = json.loads(data)
+
+        #input(self.users['953dba24'])
         
         #Open file handler
         with open(os.getcwd() + f'/cache/csv/{datetime.datetime.now().strftime("%Y-%m-%d")}.csv', "w") as f:
@@ -265,7 +279,7 @@ class Driver:
             #Create csv header
             f.writerow(["title", "post_date", "edit_date", "contributor_id", \
                     "contributor_rank", "message_text", "post_version", "post_datetime", \
-                    "post_moderation"])
+                    "post_moderation", "category", "url"])
 
             #Userdb dict
             users = {}
@@ -275,6 +289,7 @@ class Driver:
 
                 if category_url == 'timestamp':
                     continue
+
                 #For each thread scraped in that category
                 for thread_url in data[category_url].keys():
                     #Add the entry to our userdb
@@ -284,6 +299,7 @@ class Driver:
 
                     for name in data[category_url][thread_url]['contributors'].keys():
                         users[name] = data[category_url][thread_url]['contributors'][name]
+                    #self.users[name] = users[name]
 
                     #For each user in the cached messages
                     for key in data[category_url][thread_url]['messages'].keys():
@@ -293,6 +309,14 @@ class Driver:
                             li.append(int(v))
                         latest = max(li)
                         last = None
+                        rank = ''
+                        for entry in data[category_url][thread_url]['contributors'].keys():
+                            if data[category_url][thread_url]['contributors'][entry]['user_id'] == key:
+                                rank = data[category_url][thread_url]['contributors'][entry]['rank']
+                        if rank == '':
+                            print(f'Rank for user {key} not found')
+                            # print(f"User had information: {data[category_url][thread_url]['contributors'][entry]}")
+                        
                         for message in data[category_url][thread_url]['messages'][key][str(latest)]:
                             #Try to pull edited status
                             if message[1] == last:
@@ -303,11 +327,6 @@ class Driver:
                             except:
                                 edited = 'Unedited'
 
-                            #Pull the users rank
-                            for entry in users:
-                                if users[entry]['user_id'] == key:
-                                    rank = users[entry]['rank']
-
                             if message[1] == '<--Deleted-->':
                                 last = latest - 1
                                 #print(data[category_url][thread_url]['messages'][key])
@@ -317,35 +336,33 @@ class Driver:
                                     #print(e)
                                     #print('didnt find old posts for user')
                                     #pass
-                                found = False
-                                for v in self.hist[category_url][thread_url]['messages'][key].keys():
-                                    try:
-                                        msgs = self.hist[category_url][thread_url]['messages'][key][str(v)]
-                                        for msg in msgs:
-                                            if msg[0] == message[0] and msg[1] != '<--Deleted-->':
-                                                #print(f'Found message was deleted with text: \n {msg[1]}')
-                                                f.writerow([data[category_url][thread_url]['title'],\
-                                                data[category_url][thread_url]['post_date'], \
-                                                msg[3], \
-                                                key, rank, msg[1], latest-1, \
-                                                msg[0], '<--Deleted-->'])
-                                                found = True
-                                                break
-                                        if found is True:
+
+                                #Pull the users rank
+                                
+                                try:
+                                    msgs = self.hist[category_url][thread_url]['messages'][key][str(last)]
+                                    for msg in msgs:
+                                        if msg[0] == message[0] and msg[1] != '<--Deleted-->':
+                                            #print(f'Found message was deleted with text: \n {msg[1]}')
+                                            f.writerow([data[category_url][thread_url]['title'],\
+                                            data[category_url][thread_url]['post_date'], \
+                                            msg[3], key, rank, msg[1], latest, \
+                                            msg[0], '<--Deleted-->', \
+                                            category_url.split('/t5/')[1].split('/')[0], thread_url])
                                             break
-                                    except Exception as e:
-                                        print(e)
-                                        pass
+                                except Exception as e:
+                                    print(e)
                             else:
                             #print(f'Writing message\n userid: {key}\n timestamp: {message[0]}\n message: {message[1]}')
                             #Write row to csv
+                            #Pull the users rank
                                 f.writerow([data[category_url][thread_url]['title'],\
                                 data[category_url][thread_url]['post_date'], \
                                 message[3], \
                                 key, rank, message[1], latest, \
-                                message[0], edited])
+                                message[0], edited, category_url.split('/t5/')[1].split('/')[0], thread_url])
+                            
 
-        self.users = users
         #File handler for Userdb file
         with open (os.getcwd() + f'/cache/csv/userdb/users_{datetime.datetime.now().strftime("%Y-%m-%d")}.csv', "w") as f:
             f = csv.writer(f)
@@ -383,6 +400,12 @@ class Driver:
                 with open(os.getcwd() + '/cache/logs/' + newest_file, 'r') as f:
                     data = json.load(f)
                     self.hist = data
+                    for category in self.hist.keys():
+                        if category == 'timestamp':
+                            continue
+                        for thread in self.hist[category].keys():
+                            for contributor in self.hist[category][thread]['contributors'].keys():
+                                self.users[contributor] = self.hist[category][thread]['contributors'][contributor]
                     try:
                         self.last_scan = datetime.datetime.strptime(data['timestamp'], "%m/%d/%Y, %H:%M:%S")
                     except:
@@ -554,6 +577,8 @@ class Driver:
 
     def report_stats(self):
         print('<------------------------------------------------------------------------------>')
+        print(f'Last scan at {self.last_scan}')
+        print(f'Now: {datetime.datetime.now()}')
         diff = datetime.datetime.now() - self.last_scan
         dur = datetime.datetime.now() - self.scan_start
         durdays, durhours, durmins = dur.days, dur.seconds // 3600, dur.seconds // 60 % 60
@@ -666,14 +691,17 @@ class Driver:
 
 if __name__ == "__main__":
     #Run test functions
-    d = Driver()
+    
     if '-flush' in sys.argv:
-        d.flush()
+        #d.flush()
+        d = Driver(flush=True)
+    else:
+        d = Driver()
     try:
         if '--config' not in sys.argv:
             data = d.go()
             d.write_csv(data)
-            d.email_results()
+            #d.email_results()
             d.report_stats()
     except KeyboardInterrupt:
         d.close()

@@ -2,43 +2,47 @@ import sys, os, time, json, logging, datetime, traceback, inspect, uuid, hashlib
 from bs4 import BeautifulSoup
 
 class ThreadScraper:
-    def __init__(self, driver, hist, target=None, debug=False, stats=None):
+    def __init__(self, driver, hist, target=None, debug=False, stats=None, users=None):
         #Instantiate soup object and inherit logger.
         self.soup = None
         self.driver = driver
         self.hist = hist
         self.logger = logging.getLogger(__name__)
-        self.users = {}
-        targets = ['https://community.upwork.com/t5/Freelancers/bd-p/freelancers',\
+        if users is None:
+            self.users = {}
+        else:
+            self.users = users
+        targets = ['https://community.upwork.com/t5/Freelancers/bd-p/freelancers']#/
                 #'https://community.upwork.com/t5/Announcements/bd-p/news',\
-                'https://community.upwork.com/t5/Clients/bd-p/clients', \
-                'https://community.upwork.com/t5/Agencies/bd-p/Agencies']
-        if stats is None:
-            self.stats = {}
+                #'https://community.upwork.com/t5/Clients/bd-p/clients', \
+                #'https://community.upwork.com/t5/Agencies/bd-p/Agencies']
+        self.ref = {}
+        #if stats is None:
+        self.stats = {}
+            #print('Formatting new stats dict')
             # self.stats['deletions'] = 0
             # self.stats['modifications'] = 0
             # self.stats['user_mods'] = {}
             # self.stats['user_deletes'] = {}
-            for tar in targets:
-                self.stats[tar.split('/t5/')[1].split('/')[0]] = {}
-                self.stats[tar.split('/t5/')[1].split('/')[0]]['deletions'] = 0
-                self.stats[tar.split('/t5/')[1].split('/')[0]]['modifications'] = 0
-                self.stats[tar.split('/t5/')[1].split('/')[0]]['user_mods'] = {}
-                self.stats[tar.split('/t5/')[1].split('/')[0]]['user_deletes'] = {}
-        else:
-            self.stats = stats
-
-        self.ref = {}
-
         for tar in targets:
+            self.stats[tar.split('/t5/')[1].split('/')[0]] = {}
+            self.stats[tar.split('/t5/')[1].split('/')[0]]['deletions'] = 0
+            self.stats[tar.split('/t5/')[1].split('/')[0]]['modifications'] = 0
+            self.stats[tar.split('/t5/')[1].split('/')[0]]['user_mods'] = {}
+            self.stats[tar.split('/t5/')[1].split('/')[0]]['user_deletes'] = {}
             self.ref[tar] = tar.split('/t5/')[1].split('/')[0]
+        #else:
+        if stats is not None:
+            self.stats.update(stats)
 
         self.debug_mode = debug
+
+        #print(f'Scraper stats keys {self.stats.keys()}')
 
     def update_stats(self, stats):
         self.stats = stats
 
-    def make_soup(self, html, url, tar=None, categ=None):
+    def make_soup(self, html, url, users, tar=None, categ=None):
         """Main thread scraper function. Uses BeautifulSoup to parse HTML based on class tags and 
         compiles relevant data/metadata in dict format. Detects edit status and moderation status."""
         self.soup = BeautifulSoup(html, 'html.parser')
@@ -49,6 +53,7 @@ class ThreadScraper:
         
         try:
             hist_partition = self.hist[tar]
+            #print('Got hist')
         except KeyError:
             hist_partition = None
 
@@ -57,31 +62,28 @@ class ThreadScraper:
         except:
             messages = {}
 
-        if hist_partition is not None:
-            try:
-                for user, userdata in hist_partition[url]['contributors'].items():
-                    self.users[user] = {'user_id': userdata['user_id'], \
-                                        'user_url':userdata['user_url'], \
-                                        'member_since': userdata['member_since'], \
-                                        'rank': userdata['rank']}
-            except:
-                pass
-        
         oldest = datetime.datetime.now()
         oldmsg = None
+        #input(f"keys: {hist_partition[url]['update_version']}")
         if hist_partition is not None:
             try:
                 version = hist_partition[url]['update_version']
-                for msg in hist_partition[url]['messages'][version - 1]:
-                    obj = datetime.datetime.strptime(msg[0], '%m-%d-%Y %H:%M')
-                    if oldest > obj:
-                        oldest = obj
-                        oldmsg = msg
-            except:
+            except Exception as e:
                 version = 0
+
+            try:
+                for user in hist_partition[url]['messages'].keys():
+                    for msg in hist_partition[url]['messages'][user][version]:
+                        obj = datetime.datetime.strptime(msg[0], '%m-%d-%Y %H:%M')
+                        if oldest > obj:
+                            oldest = obj
+                            oldmsg = msg
+            except:
+                pass
         else:
             version = 0
         version += 1
+        #print(f'generating version {version} for {url}')
         try:
             title = self.soup.find('h1', class_='lia-message-subject-banner lia-component-forums-widget-message-subject-banner')\
                 .text.replace('\n\t', '').replace('\n', '').replace('\u00a0', '')
@@ -168,31 +170,39 @@ class ThreadScraper:
                 dt = datetime.datetime.strptime(postdate, date_format)
                 if name not in self.users.keys():
                     user_id = uuid.uuid4().hex[:8]
+                    #user_id = abs(hash(name)) % (10 ** 8)
                     self.users[name] = {'user_id': user_id, 'user_url': _url, 'member_since': member_since, 'rank': rank}
+                    contributors[name] = self.users[name]
                 else:
                     user_id = self.users[name]['user_id']
-                if dt <= oldest:
-                    if (now-dt).days > 7:
-                        expired = True
-                        break
+                    #if user_id != abs(hash(name)) % (10 ** 8):
+                        #del self.users[name]
+                        #self.users[name] = {'user_id': abs(hash(name)) % (10 ** 8), 'user_url': _url, 'member_since': member_since, 'rank': rank}
+                    contributors[name] = self.users[name]
+                if (now-dt).days > 7:
+                    expired = True
+                    break
                 if self.debug_mode is True:
                     debugli.append(user_id)
-                body = msg.find('div', class_='lia-message-body-content').find_all('p')
+                body = msg.find('div', class_='lia-message-body-content').find_all(['p', 'ul'])
                 post = ''
                 for p in body:
                     if p.text == '&nbsp':
                         pass
+                    if p.name == 'ul':
+                        li = p.find_all('li')
+                        for item in li:
+                            post += item.text
                     else:
                         post += ('' + p.text + '').replace('\u00a0', '').replace('\n', '')
 
-                    try:
-                        edited = str(p.find('span').text)
-                        if edited.find('**Edited for') != -1:
-                            edit_status = '**Edited for'
-                        elif edited.find('**edited for') != -1:
-                            edit_status = '**edited for'
-                    except:
-                        pass
+                #print(post)
+                #input(post)
+                if '**Edited for' in post:
+                    edit_status = '**Edited for'
+                if '**edited for' in post:
+                    edit_status = '**edited for'
+                #input(edit_status)
 
                 if edit_status != 'Unedited':
                     self.stats[category]['modifications'] += 1
@@ -202,10 +212,11 @@ class ThreadScraper:
                         self.stats[category]['user_mods'][user_id] = 1
 
                 if post != '':
-                    mid = int(hashlib.sha1(post.encode("utf-8")).hexdigest(), 16) % (10 ** 8)
+                    #mid = int(hashlib.sha1(post.encode("utf-8")).hexdigest(), 16) % (10 ** 8)
                     if user_id in messages.keys():
                         if str(version) in messages[user_id].keys():
-                            messages[user_id][str(version)].append((timestamp, post, edit_status, editdate))
+                            if (timestamp, post, edit_status, editdate) not in messages[user_id][str(version)]:
+                                messages[user_id][str(version)].append((timestamp, post, edit_status, editdate))
                         else:
                             messages[user_id][str(version)] = [(timestamp, post, edit_status, editdate)]
                     else:
@@ -234,8 +245,19 @@ class ThreadScraper:
             import random
             try:
                 choice = random.choice(debugli)
-                del messages[choice]
-                print(f'Removed entry w/ key {choice}')
+                #input(contributors[choice])
+                msg = random.choice(messages[choice][str(version)])
+                popped = messages[choice][str(version)].pop(random.randrange(len(messages[choice][str(version)])))
+                removed = None
+                #print(f'Removed entry from user {key}, text: {popped[1][:24]}')
+                found = False
+                for entry in contributors.keys():
+                    if contributors[entry]['user_id'] == choice:
+                        print(f'User info: {contributors[entry]}')
+                        found = True
+                        removed = entry
+                if found is False:
+                    input('THIS IS WHY ITS BROKEN')
             except:
                 pass
             
@@ -251,14 +273,14 @@ class ThreadScraper:
                             new_tups = [x for x in messages[user_id][str(version)]]
                             obj = []
                             for tup_ in new_tups:
-                                obj.append(tup[0])
+                                obj.append(tup_[0])
                             if timestamp not in obj:
                                 self.stats[category]['deletions'] += 1
                                 if user_id in self.stats[category]['user_deletes'].keys():
                                     self.stats[category]['user_deletes'][user_id] += 1
                                 else:
                                     self.stats[category]['user_deletes'][user_id] = 1
-                                messages[user_id][str(version)].append((timestamp, '<--Deleted-->', '<--Deleted-->', 'Deleted in last day'))
+                                messages[user_id][str(version)].append((timestamp, msgpost, '<--Deleted-->', 'Deleted in last day'))
                         else:
                             if user_id in messages.keys() and str(version) in messages[user_id].keys():
                                 self.stats[category]['deletions'] += 1
@@ -266,7 +288,7 @@ class ThreadScraper:
                                     self.stats[category]['user_deletes'][user_id] += 1
                                 else:
                                     self.stats[category]['user_deletes'][user_id] = 1
-                                messages[user_id][str(version)].append((timestamp, '<--Deleted-->', '<--Deleted-->', 'Deleted in last day'))
+                                messages[user_id][str(version)].append((timestamp, msgpost, '<--Deleted-->', 'Deleted in last day'))
                             else:
                                 self.stats[category]['deletions'] += 1
                                 if user_id in self.stats[category]['user_deletes'].keys():
@@ -274,16 +296,19 @@ class ThreadScraper:
                                 else:
                                     self.stats[category]['user_deletes'][user_id] = 1
                                 messages[user_id] = {}
-                                messages[user_id][str(version)] = [(timestamp, '<--Deleted-->', '<--Deleted-->', 'Deleted in last day')]
+                                messages[user_id][str(version)] = [(timestamp, msgpost, '<--Deleted-->', 'Deleted in last day')]
 
         pkg = {}
         pkg['pkg_creation_stamp'] = str(datetime.datetime.now())
         pkg['title'] = title
         pkg['post_date'] = post_date
         pkg['edit_date'] = edit_date
-        pkg['contributors'] = self.users
+        pkg['contributors'] = contributors
+        #input(pkg['contributors'][removed])
         pkg['messages'] = messages
         pkg['update_version'] = version
+
+        #print(f'Scraper stats: {self.stats}')
 
         return pkg
 
