@@ -272,7 +272,7 @@ class ThreadScraper:
                     #Get the last version, if its available
                     if str(v) in hist_partition[url]['messages'][user_id].keys():
                         #Make a list of each post for this user
-                        hist_tups = [x for x in hist_partition[url]['messages'][user_id][v]]
+                        hist_tups = [x for x in hist_partition[url]['messages'][user_id][str(v)]]
                         #For each msg object
                         for tup in hist_tups:
                             timestamp = tup[0]
