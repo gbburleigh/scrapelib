@@ -11,7 +11,7 @@ from selenium import webdriver
 from crawler import Crawler
 
 class Driver:
-    def __init__(self, flush=False):
+    def __init__(self, flush=False, start=None):
 
         #Configure logger
         self.logger = logging.getLogger(__name__)
@@ -26,7 +26,10 @@ class Driver:
         self.logger.addHandler(self.ch)
         self.logger.addHandler(self.fh)
         self.last_scan = datetime.datetime.now()
-        self.scan_start = datetime.datetime.now()
+        if start is None:
+            self.scan_start = datetime.datetime.now()
+        else:
+            self.scan_start = start
 
         if flush is False:
             #Configure history dictionary and load data into it if possible
@@ -577,7 +580,7 @@ class Driver:
 
     def report_stats(self):
         print('<------------------------------------------------------------------------------>')
-        print(f'Last scan at {self.last_scan}')
+        print(f'Started at {self.scan_start}')
         print(f'Now: {datetime.datetime.now()}')
         diff = datetime.datetime.now() - self.last_scan
         dur = datetime.datetime.now() - self.scan_start
@@ -691,12 +694,12 @@ class Driver:
 
 if __name__ == "__main__":
     #Run test functions
-    
+    now = datetime.datetime.now()
     if '-flush' in sys.argv:
         #d.flush()
-        d = Driver(flush=True)
+        d = Driver(flush=True, start=now)
     else:
-        d = Driver()
+        d = Driver(start=now)
     try:
         if '--config' not in sys.argv:
             data = d.go()
