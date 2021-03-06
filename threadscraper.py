@@ -102,6 +102,7 @@ class ThreadScraper:
         contributors = {}
         pages = self.get_page_numbers()
         start = pages
+        seen = []
         if start > 25:
             end = start - 25
         else:
@@ -235,9 +236,12 @@ class ThreadScraper:
                                 old = hist_partition[url]['messages'][user_id][str(key)]
                                 messages[user_id][str(key)] = old.copy()
 
-                if (now-dt).days > 7 and (timestamp, post, edit_status, editdate) == oldmsg:
-                    expired = True
-                    break
+                seen.append((timestamp, post, edit_status, editdate))
+
+                if (now-dt).days > 7:
+                    if oldmsg in seen or dt < oldest:
+                        expired = True
+                        break
 
             if expired is True:
                 break
