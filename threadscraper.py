@@ -214,36 +214,65 @@ class ThreadScraper:
                     if user_id in messages.keys():
                         if str(version) in messages[user_id].keys():
                             if (timestamp, post, edit_status, editdate) not in messages[user_id][str(version)]:
-                                messages[user_id][str(version)].append((timestamp, post, edit_status, editdate))
+                                if version > 1:
+                                    if user_id in hist_partition[url]['messages'].keys():
+                                        if str(version - 1) in hist_partition[url]['messages'][user_id].keys():
+                                            messages[user_id][str(version)].append((timestamp, post, 'NEW, ' + edit_status, editdate))
+                                        else:
+                                            messages[user_id][str(version)].append((timestamp, post, edit_status, editdate))
+                                    else:
+                                        messages[user_id][str(version)].append((timestamp, post, 'NEW, ' + edit_status, editdate))
+                                else:
+                                    messages[user_id][str(version)].append((timestamp, post, edit_status, editdate))
                         else:
                             messages[user_id][str(version)] = [(timestamp, post, edit_status, editdate)]
                     else:
                         messages[user_id] = {}
-                        messages[user_id][str(version)] = [(timestamp, post, edit_status, editdate)]
+                        if version > 1:
+                            messages[user_id][str(version)] = [(timestamp, post, 'NEW, ' + edit_status, editdate)]
+                        else:
+                            messages[user_id][str(version)] = [(timestamp, post, edit_status, editdate)]
+
+                    #print(f'Generated version {str(version)}: {messages[user_id][str(version)]}')
 
                     if user_id not in msg_cache.keys():
                         msg_cache[user_id] = [post]
                     else:
                         msg_cache[user_id].append(post)
 
-                if version > 1:
-                    for key in range(1, version):
-                        try:
-                            messages[user_id][str(key)].update(hist_partition[url]['messages'][user_id][str(key)])
-                        except:
-                            if user_id in hist_partition[url]['messages'].keys() and \
-                            str(key) in hist_partition[url]['messages'][user_id].keys():
-                                old = hist_partition[url]['messages'][user_id][str(key)]
-                                messages[user_id][str(key)] = old.copy()
+                    # if version > 1:
+                    #     for key in range(1, version):
+                    #         try:
+                    #             messages[user_id][str(key)].update(hist_partition[url]['messages'][user_id][str(key)])
+                    #         except:
+                    #             print(f'Missing version {str(key)} for user {user_id}')
+                    #             try:
+                    #                 messages[user_id][str(key)] = hist_partition[url]['messages'][user_id][str(key)].copy()
+                    #             except:
+                    #                 print(f'SOMETHING REALLY WENT WRONG')
+                    
+                    if version > 1:
+                        for key in range(1, version):
+                            try:
+                                if str(key) in messages[user_id].keys():
+                                    messages[user_id][str(key)].update(hist_partition[url]['messages'][user_id][str(key)])
+                                else:
+                                    messages[user_id][str(key)] = hist_partition[url]['messages'][user_id][str(key)].copy()
+                            except:
+                                if user_id in hist_partition[url]['messages'].keys() and \
+                                str(key) in hist_partition[url]['messages'][user_id].keys():
+                                    old = hist_partition[url]['messages'][user_id][str(key)]
+                                    if old is not None:
+                                        messages[user_id][str(key)] = old.copy()
 
                 seen.append((timestamp, post, edit_status, editdate))
 
                 if (now-dt).days > 7:
                     if oldmsg in seen or dt < oldest:
                         expired = True
-                        print(f'Ended on message: {post[:40]}')
+                        #print(f'Ended on message: {post[:40]}')
                         break
-
+                
             if expired is True:
                 break
 
@@ -256,16 +285,10 @@ class ThreadScraper:
                     #input(contributors[choice])
                     msg = random.choice(messages[choice][str(version)])
                     popped = messages[choice][str(version)].pop(random.randrange(len(messages[choice][str(version)])))
-                    removed = None
-                    #print(f'Removed entry from user {key}, text: {popped[1][:24]}')
-                    found = False
-                    for entry in contributors.keys():
-                        if contributors[entry]['user_id'] == choice:
-                            print(f'User info: {contributors[entry]}')
-                            found = True
-                            removed = entry
-                    if found is False:
-                        input('THIS IS WHY ITS BROKEN')
+                    print(f'Removed entry from user {key}, text: {popped[1][:24]}')
+                    # for entry in contributors.keys():
+                    #     if contributors[entry]['user_id'] == choice:
+                    #         print(f'User info: {contributors[entry]}')
                 except:
                     pass
             
@@ -273,27 +296,38 @@ class ThreadScraper:
         if version > 1:
             for user_id in messages.keys():
                 #Get the last version
-                last = version - 1
-                #Get the entries from the current scan
-                curr_entries = messages[user_id][str(version)]
-                #For each cached entry
-                for entry in messages[user_id][str(last)]:
-                    c = False
-                    for e in curr_entries:
-                        if e[0] == entry[0] and e[1] == entry[1]:
-                            c = True
-                        elif e[0] == entry[0] and e[1].find('**') != -1:
-                            c = True
-                    if c is True:
-                        continue
-                    #For messages not in the current cached memory
-                    if entry not in curr_entries:
-                        messages[user_id][str(version)].append((timestamp, entry[1], '<--Deleted-->', 'Deleted in last day'))
-                        self.stats[category]['deletions'] += 1
-                        if user_id in self.stats[category]['user_deletes'].keys():
-                            self.stats[category]['user_deletes'][user_id] += 1
-                        else:
-                            self.stats[category]['user_deletes'][user_id] = 1
+                if str(version - 1) in messages[user_id].keys():
+                    last = version - 1
+                    #Get the entries from the current scan
+                    #print(json.dumps(messages[user_id], indent=4))
+                    #print(messages[user_id].keys())
+                    if str(version) in messages[user_id].keys():
+                        curr_entries = messages[user_id][str(version)]
+                        #For each cached entry
+                        for entry in messages[user_id][str(last)]:
+                            c = False
+                            for e in curr_entries:
+                                if e[0] == entry[0] and e[1] == entry[1]:
+                                    c = True
+                                elif e[0] == entry[0] and e[1].find('**') != -1:
+                                    c = True
+                            if c is True:
+                                continue
+                            #For messages not in the current cached memory
+                            if entry not in curr_entries:
+                                #print(f'Old entries: {messages[user_id][str(last)]}')
+                                #print(f'New entries: {curr_entries}')
+                                messages[user_id][str(version)].append((timestamp, entry[1], '<--Deleted-->', 'Deleted in last day'))
+                                self.stats[category]['deletions'] += 1
+                                if user_id in self.stats[category]['user_deletes'].keys():
+                                    self.stats[category]['user_deletes'][user_id] += 1
+                                else:
+                                    self.stats[category]['user_deletes'][user_id] = 1
+                    else:
+                        #print(f'USER ID {user_id} MISSING VERSION ON URL {url}')
+                        messages[user_id][str(version)] = []
+                        for entry in messages[user_id][str(last)]:
+                            messages[user_id][str(version)].append((entry[0], entry[1], '<--Deleted-->', 'Deleted in last day'))
 
         # if version > 1 and hist_partition is not None:
         #     #If we have data saved about this thread
