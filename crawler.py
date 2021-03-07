@@ -47,7 +47,7 @@ class Crawler:
                         #'https://community.upwork.com/t5/Announcements/bd-p/news',\
                         'https://community.upwork.com/t5/Clients/bd-p/clients', \
                         'https://community.upwork.com/t5/Agencies/bd-p/Agencies']
-        #if target == 'upwork':
+        # #if target == 'upwork':
         for tar in self.targets:
             self.stats[tar.split('/t5/')[1].split('/')[0]] = {}
             self.stats[tar.split('/t5/')[1].split('/')[0]]['deletions'] = 0
