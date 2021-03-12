@@ -41,7 +41,7 @@ class Crawler:
     def parse_page(self, tar):
 
         self.driver.get(tar)
-        time.sleep(2)
+        time.sleep(3)
         
         threadli = []
         for currentpage in range(1, self.max_page_scroll):
@@ -51,7 +51,7 @@ class Crawler:
                 pass
             else:
                 self.driver.get(self.generate_next(tar, currentpage))
-                time.sleep(2)
+                time.sleep(3)
 
             urls = self.get_links("//a[@class='page-link lia-link-navigation lia-custom-event']")
 
@@ -59,7 +59,7 @@ class Crawler:
                 if url in self.skipped:
                     continue
                 self.driver.get(url)
-                time.sleep(2)
+                time.sleep(3)
                 thread = self.scraper.make_soup(self.driver.page_source, url)
                 print(f'Generated thread: {thread.__str__()}')
                 threadli.append(thread)
