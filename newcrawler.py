@@ -58,10 +58,17 @@ class Crawler:
             for url in urls:
                 if url in self.skipped:
                     continue
-                while self.driver.page_source is None:
-                    self.driver.get(url)
-                    time.sleep(3)
-                thread = self.scraper.make_soup(self.driver.page_source, url)
+                self.driver.get(url)
+                time.sleep(3)
+                try:
+                    thread = self.scraper.make_soup(self.driver.page_source, url)
+                except:
+                    try:
+                        self.driver.get(url)
+                        time.sleep(3)
+                        thread = self.scraper.make_soup(self.driver.page_source, url)
+                    except:
+                        print('SOMETHING REALLY WENT WRONG!!!!!!!')
                 print(f'Generated thread: {thread.__str__()}')
                 threadli.append(thread)
 
