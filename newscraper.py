@@ -18,7 +18,7 @@ class ThreadScraper:
     def make_soup(self, html, url):
         """Main thread scraper function. Uses BeautifulSoup to parse HTML based on class tags and 
         compiles relevant data/metadata in dict format. Detects edit status and moderation status."""
-        self.soup = BeautifulSoup(html, 'html.parser')
+        self.soup = BeautifulSoup(html.encode('utf-8'), 'html.parser')
         userlist = UserList([])
         postlist = PostList([])
         if len(self.db.pred.keys()) > 0:
