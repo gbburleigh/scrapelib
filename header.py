@@ -65,7 +65,7 @@ class Post:
     """Generic post object. Generates unique ID based on author str and postdate. In the case
     that a post is deleted, its id should therefor not even appear in the postlist. Wrapper for
     csv and json functionality later"""
-    def __init__(self, postdate, editdate, message, user : User, url, page, index):
+    def __init__(self, postdate, editdate, message, user : User, url, page, index, category):
         self.postdate = postdate
         self.editdate = editdate
         try:
@@ -107,12 +107,19 @@ class Post:
         self.edited = User('', '', '', '')
         self.seen_for_mod = False
         self.seen_for_del = False
+        self.category = category
 
         if self.message.find('**Edited') != -1 or self.message.find('**edited') != -1:
             self.edit_status = '**Edited**'
 
     def add_edited(self, user: User):
         self.edited = user
+
+    def str_to_td(self, s):
+        t = datetime.datetime.strptime(s,"%H:%M:%S")
+        # ...and use datetime's hour, min and sec properties to build a timedelta
+        delta = datetime.timedelta(hours=t.hour, minutes=t.minute, seconds=t.second)
+        return delta
 
     def __str__(self):
         return f'Post(name={self.author.__str__()}, id={self.id}, url={self.url})'
@@ -131,6 +138,7 @@ class Post:
         d['edited'] = self.edited.__json__()
         d['seen_for_mod'] = self.seen_for_mod
         d['seen_for_del'] = self.seen_for_del
+        d['category'] = self.category
 
         return d
 
@@ -148,6 +156,7 @@ class Post:
         self.index = d['index']
         self.seen_for_mod = d['seen_for_mod']
         self.seen_for_del = d['seen_for_del']
+        self.category = d['category']
         u = User('', '', '', '')
         u.load(d['edited'])
         self.edited = u
@@ -178,7 +187,7 @@ class PostList:
 
     def load(self, d):
         for item in d['postlist']:
-            p = Post('', '', '', User('', '', '', ''), '', '', '0')
+            p = Post('', '', '', User('', '', '', ''), '', '', '0', '')
             p.load(item)
             self.postlist.append(p)
             self.posts[item['id']] = p
@@ -265,7 +274,7 @@ class DeleteList:
 
     def load(self, d):
         for item in d['deletelist']:
-            p = Post('', '', '', User('', '', '', ''), '', '', '0')
+            p = Post('', '', '', User('', '', '', ''), '', '', '0', '')
             p.load(item)
             self.deletelist.append(p)
             self.posts[item['id']] = p
@@ -326,7 +335,7 @@ class Thread:
         self.total = d['total']
         self.oldest_index = d['oldest_index']
         for item in d['postlist']:
-            p = Post('', '', '', User('', '', '', ''), '', '', '0')
+            p = Post('', '', '', User('', '', '', ''), '', '', '0', '')
             p.load(item)
             self.postlist.postlist.append(p)
             self.posts[item['id']] = p
@@ -434,9 +443,9 @@ class StatTracker:
     def __init__(self, src=None):
         self.user_deletions = {}
         self.user_modifications = {}
-        self.deletions = 0
-        self.modifications = 0
-        self.avg_edit_time = 0
+        self.deletions = {}
+        self.modifications = {}
+        self.avg_edit_time = {}
         self.avg_timestamp = {}
         self.edit_times = {}
         if src is not None and type(src) is dict:
@@ -449,24 +458,40 @@ class StatTracker:
         
     def update_modifications(self, src):
         for _, category in src.items():
+            if category.name not in self.modifications.keys():
+                self.modifications[category.name] = 0
             for url, thread in category.threads.items():
                 for post in thread.postlist.postlist:
                     if post.edit_status != 'Unedited' and post.edit_status != '<--Deleted-->' and post.seen_for_mod is False:
-                        self.modifications += 1
-                        if post.author.id in self.user_modifications.keys():
-                            self.user_modifications[post.author.id] += 1
+                        if category.name in self.modifications.keys():
+                            self.modifications[category.name] += 1
                         else:
-                            self.user_modifications[post.author.id] = 1
+                            self.modifications[category.name] = 1
+                        if category.name in self.user_modifications.keys():
+                            if post.author.id in self.user_modifications[category.name].keys():
+                                self.user_modifications[category.name][post.author.id] += 1
+                            else:
+                                self.user_modifications[category.name][post.author.id] = 1
+                        else:
+                            self.user_modifications[category.name] = {}
+                            self.user_modifications[category.name][post.author.id] = 1
                         post.seen_for_mod = True
 
     def update_deletions(self, deletelist: DeleteList):
         for post in deletelist.deletelist:
             if post.seen_for_del is False:
-                self.deletions += 1
-                if post.author.id in self.user_deletions.keys():
-                    self.user_deletions[post.author.id] += 1
+                if post.category in self.deletions.keys():
+                    self.deletions[post.category] += 1
                 else:
-                    self.user_deletions[post.author.id] = 1
+                    self.deletions[post.category] = 1
+                if post.category in self.user_deletions.keys():
+                    if post.author.id in self.user_deletions[post.category].keys():
+                        self.user_deletions[post.category][post.author.id] += 1
+                    else:
+                        self.user_deletions[post.category][post.author.id] = 1
+                else:
+                    self.user_deletions[post.category] = {}
+                    self.user_deletions[post.category][post.author.id] = 1
                 post.seen_for_del = True
 
     def update_edit_time(self, src):
@@ -481,22 +506,28 @@ class StatTracker:
                         #hourtotal += hours
                         total += post.edit_time.seconds
                         count += 1
-                        self.edit_times[post.id] = post.edit_time
+                        if category.name in self.edit_times.keys():
+                            self.edit_times[category.name][post.id] = post.edit_time
+                        else:
+                            self.edit_times[category.name] = {}
+                            self.edit_times[category.name][post.id] = post.edit_time
+                                
 
-        self.avg_edit_time = total/count
-        self.sec_to_str(total/count)
+            self.avg_edit_time[category.name] = total/count
+            self.sec_to_str(total/count, category.name)
         
-    def sec_to_str(self, sec): 
-        day = sec // (24 * 3600) 
-        self.avg_timestamp['days']
+    def sec_to_str(self, sec, categ): 
+        days = sec // (24 * 3600) 
+        self.avg_timestamp[categ] = {}
+        self.avg_timestamp[categ]['days'] = days
         sec = sec % (24 * 3600) 
         hour = sec // 3600
-        self.avg_timestamp['hours'] = hour
+        self.avg_timestamp[categ]['hours'] = hour
         sec %= 3600
         minutes = sec // 60
-        self.avg_timestamp['minutes'] = minutes
+        self.avg_timestamp[categ]['minutes'] = minutes
         sec %= 60
-        self.avg_timestamp['seconds'] = sec
+        self.avg_timestamp[categ]['seconds'] = sec
 
     def __json__(self):
         d = {}
@@ -506,7 +537,11 @@ class StatTracker:
         d['modifications'] = self.modifications
         d['avg_timestamp'] = self.avg_timestamp
         d['avg_edit_time'] = self.avg_edit_time
-        d['edit_times'] = self.edit_times
+        d['edit_times'] = {}
+        for category, post in self.edit_times.items():
+            d['edit_times'][category] = {}
+            for pid, edit_time in post.items():
+                d['edit_times'][category][pid] = str(edit_time)
         return d
 
     def load(self, src):
@@ -539,6 +574,8 @@ class SiteDB:
         self.cache[entry.name] = entry
         for _, thread in entry.threads.items():
             self.users.merge(thread.users)
+        self.stats.update_modifications(self.cache)
+        self.stats.update_edit_time(self.cache)
 
     def find_oldest_index(self, url):
         for category in self.pred.keys():
@@ -566,13 +603,14 @@ class SiteDB:
             with open(os.getcwd() + '/cache/logs/{}'.format(newest_file), 'r') as f:
                 d = json.load(f)
                 self.dict_load(d)
-                
 
     def to_json(self):
         return json.dumps(self, default=lambda o: o.__dict__, 
             sort_keys=True, indent=4)
 
     def compile(self):
+        self.stats.update_modifications(self.cache)
+        self.stats.update_edit_time(self.cache)
         d = {}
         d['name'] = self.name
         d['users'] = self.users.__json__()
@@ -599,7 +637,7 @@ class SiteDB:
             self.deletes[url] = dl
         for name, category in d['cache'].items():
             c = Category([], '')
-            c.load(d['cache'][name])
+            c.load(category)
             self.cache[name] = c
             self.categories.append(c)
         self.stats.load(d['stats'])
@@ -609,12 +647,10 @@ class SiteDB:
             self.users.merge(src.users)
             for _, category in self.cache.items():
                 for url, thread in category.threads.items():
-                    #d = DeleteList([])
-                    #d.merge(thread.compare(src.cache[category][url]))
-                    self.deletes[url] = thread.compare(src.cache[category.name].threads[url])
-            
-                    for post in self.deletes[url].deletelist:
-                        self.users.handle_user(post.author)
+                    if url in src.cache[category.name].threads.keys():
+                        self.deletes[url] = thread.compare(src.cache[category.name].threads[url])
+                        for post in self.deletes[url].deletelist:
+                            self.users.handle_user(post.author)
 
         for deletelist in self.deletes.values():
             self.stats.update_deletions(deletelist)
@@ -625,7 +661,8 @@ class SiteDB:
         now = datetime.datetime.now().strftime("%Y-%m-%d")
         with open(os.getcwd() + '/cache/logs/{}.json'.format(now), 'w') as f:
             #data = dict(self.cache)
-            f.write(json.dumps(self.compile(), indent=4))
+            d = self.compile()
+            f.write(json.dumps(d, indent=4))
         
         with open(os.getcwd() + f'/cache/csv/{datetime.datetime.now().strftime("%Y-%m-%d")}.csv', "w") as f:
             f = csv.writer(f)
@@ -641,3 +678,24 @@ class SiteDB:
                         for post in self.deletes[thread.url].deletelist:
                             f.writerow([thread.title, thread.postdate, post.editdate, post.author.id, \
                             post.author.rank, post.message, '<--Deleted-->', category.name, thread.url])
+
+        self.report()
+
+    def report(self):
+        for category in self.stats.deletions.keys():
+            print(f'{self.stats.deletions[category]} posts no longer found in category {category}')
+        for category in self.stats.modifications.keys():
+            print(f'{self.stats.modifications[category]} posts moderated in category {category}')
+        for category in self.stats.avg_timestamp.keys():
+            days = self.stats.avg_timestamp[category]['days']
+            hours = self.stats.avg_timestamp[category]['hours']
+            mins = self.stats.avg_timestamp[category]['minutes']
+            secs = self.stats.avg_timestamp[category]['seconds']
+            print(f'Average moderation time on a post in category {category} was {days} days, {hours} hours, {mins} minutes, {secs} seconds')
+            print(f'User statistics for category {category}:')
+        for category in self.stats.user_deletions.keys():
+            for uid, count in self.stats.user_deletions[category].items():
+                print(f'User {uid} had {count} posts no longer found')
+        for category in self.stats.user_modifications.keys():
+            for uid, count in self.stats.user_modifications[category].items():
+                print(f'User {uid} had {count} posts moderated')

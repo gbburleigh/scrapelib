@@ -12,9 +12,6 @@ class ThreadScraper:
         self.db = sitedb
         self.debug = debug
 
-    def update_stats(self, stats):
-        self.stats = stats
-
     def update_page(self, pagenum):
         self.page = pagenum
 
@@ -173,9 +170,9 @@ class ThreadScraper:
                 userlist.handle_user(u)
                 if post != '':
                     if editdate != '' and user_id != '':
-                        p = Post(postdate, editdate + f'({user_id})', post, u, url, pagenum, index)
+                        p = Post(postdate, editdate + f'({user_id})', post, u, url, pagenum, index, url.split('/t5/')[1].split('/')[0])
                     else:
-                        p = Post(postdate, editdate, post, u, url, pagenum, index)
+                        p = Post(postdate, editdate, post, u, url, pagenum, index, url.split('/t5/')[1].split('/')[0])
                     print(f'Generated post: {p.__str__()}')
                     if user_id != '':
                         p.add_edited(u)

@@ -15,7 +15,7 @@ class Crawler:
         else:
             self.scraper = ThreadScraper(self.driver, self.db)
         self.targets = ['https://community.upwork.com/t5/Freelancers/bd-p/freelancers',\
-                        #'https://community.upwork.com/t5/Announcements/bd-p/news',\
+                        'https://community.upwork.com/t5/Announcements/bd-p/news',\
                         'https://community.upwork.com/t5/Clients/bd-p/clients', \
                         'https://community.upwork.com/t5/Agencies/bd-p/Agencies']
 
@@ -32,17 +32,13 @@ class Crawler:
             time.sleep(3)
             start = datetime.datetime.now()
 
-            #Get current page's data
             category = self.parse_page(target)
             print(f'Created CATEGORY: {category.__str__()}')
             self.db.add(category)
 
-        #total['timestamp'] = datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-            
         return self.db
 
     def parse_page(self, tar):
-        """Helper for parsing relevant links and metadata from thread listing page"""
 
         self.driver.get(tar)
         time.sleep(2)
@@ -74,7 +70,6 @@ class Crawler:
         return url + f'/page/{_iter}'
 
     def get_links(self, tag):
-        """Helper function for fetching links from page."""
         hist = []
         urls = []
         for elem in self.driver.find_elements_by_xpath(tag):
@@ -105,77 +100,4 @@ class Crawler:
             pages = 1
 
         return pages
-
-if __name__ == '__main__':
-    # from selenium import webdriver
-    # from selenium.webdriver.chrome.options import Options
-    # from webdriver_manager import chrome
-    # from webdriver_manager.chrome import ChromeDriverManager
-    # options = Options()
-    # options.add_argument('--headless')
-    # options.add_argument('--disable-gpu')
-    # driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
-    # c = Crawler(driver)
-    # targets = ['https://community.upwork.com/t5/Announcements/Insight-on-how-Job-Success-Score-is-calculated/m-p/87248',\
-    #             'https://community.upwork.com/t5/Announcements/Replacing-5-Star-Average-Feedback-with-Job-Success-Score/m-p/106120']
-
-    # pkg = {}
-    # for target in targets:
-    #     driver.get(target)
-    #     time.sleep(3)
-    #     try:
-    #         pkg[target].update(c.scraper.make_soup(c.driver.page_source, target, tar='HATIM'))
-    #     except KeyError:
-    #         pkg[target] = c.scraper.make_soup(c.driver.page_source, target, tar='HATIM')
-
-    # total = {}
-    # total['HATIM'] = pkg
-    now = datetime.datetime.now().strftime("%Y-%m-%d")
-    # with open(os.getcwd() + '/cache/hatim_logs/{}_HATIM.json'.format(now), 'w') as f:
-    #     f.write(json.dumps(total, indent=4))
-
-    with open(os.getcwd() + '/cache/hatim_logs/{}_HATIM.json'.format(now), 'r') as f:
-        data = json.loads(f.read())['HATIM']
-
-    with open(os.getcwd() + f'/cache/csv/{datetime.datetime.now().strftime("%Y-%m-%d")}.csv', "w") as f:
-        f = csv.writer(f)
-        f.writerow(["thread_url" , "title", "post_date", "edit_date", "contributor_id", \
-                    "contributor_rank", "message_text", "post_version", "post_datetime", \
-                    "post_moderation"])
-
-        users = {}
-
-        for thread_url in data:
-            if data[thread_url]['update_version'] > 1:
-                #TODO: MAKE A TEXT DIFF HERE AND APPEND IT
-                pass                
-                
-            for name in data[thread_url]['contributors']:
-                users[name] = data[thread_url]['contributors'][name]
-
-            for key in data[thread_url]['messages']:
-                for v in data[thread_url]['messages'][key]:
-                    for message in data[thread_url]['messages'][key][v]:
-                        try:
-                            edited = message[2]
-                        except:
-                            edited = 'Unedited'
-
-                        for entry in users:
-                            if users[entry]['user_id'] == key:
-                                rank = users[entry]['rank']
-
-                        f.writerow([thread_url, data[thread_url]['title'],\
-                        data[thread_url]['post_date'], \
-                        data[thread_url]['edit_date'], \
-                        key, rank, message[1], v, \
-                        message[0], edited])
-
-    with open (os.getcwd() + f'/cache/csv/userdb/users_{datetime.datetime.now().strftime("%Y-%m-%d")}.csv', "w") as f:
-        f = csv.writer(f)
-        f.writerow(["user_name", "user_id", "user_url", "user_join_date", "user_rank"])
-
-        for name in users:
-            f.writerow([name, users[name]['user_id'], users[name]['user_url'], users[name]['member_since'], users[name]['rank']])
-        
 
