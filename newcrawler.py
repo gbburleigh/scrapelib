@@ -58,7 +58,7 @@ class Crawler:
             for url in urls:
                 if url in self.skipped:
                     continue
-                while self.driver.page_source is not None:
+                while self.driver.page_source is None:
                     self.driver.get(url)
                     time.sleep(3)
                 thread = self.scraper.make_soup(self.driver.page_source, url)
