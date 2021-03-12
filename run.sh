@@ -1,4 +1,4 @@
-#!/bin/sh
-
-python3 driver.py -flush
-python3 driver.py -d
+#!/bin/bash
+source scrape-env/bin/activate
+python3 newdriver.py -flush
+python3 newdriver.py -d

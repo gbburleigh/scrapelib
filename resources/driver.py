@@ -566,7 +566,7 @@ class Driver:
                 # body += 'You may have found this already while running manually, otherwise log onto Quest and fix it'
                 # body += "We'll have a patch for this soon, thanks for bearing with me."
                 if excep is not None:
-                    body += f'Scan terminated due to exception: {f}'
+                    body += f'Scan terminated due to exception: {excep}'
                 body += 'Something went wrong during the scan. Go fix it!'
                 body = MIMEText(body)
                 msg.attach(body)
