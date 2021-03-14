@@ -69,31 +69,31 @@ class Post:
     def __init__(self, postdate, editdate, message, user : User, url, page, index, category):
         self.postdate = postdate
         self.editdate = editdate
-        try:
-            self.postdate = self.postdate.split(' AM')[0]
-        except:
-            pass
-        try:
-            self.postdate = self.postdate.split(' PM')[0]
-        except:
-            pass
+        # try:
+        #     self.postdate = self.postdate.split(' AM')[0]
+        # except:
+        #     pass
+        # try:
+        #     self.postdate = self.postdate.split(' PM')[0]
+        # except:
+        #     pass
 
         date_format = "%b %d, %Y %H:%M:%S"
         if self.postdate != '':
             #dt = datetime.strptime(self.postdate, "%b %d, %Y %H:%M:%S")
-            self.poststamp = datetime.strptime(self.postdate, "%b %d, %Y %H:%M:%S")
+            self.poststamp = datetime.strptime(self.postdate, "%b %d, %Y %H:%M:%S %p")
             #self.poststamp = maya.parse(self.postdate).datetime()
             if self.editdate != '':
-                try:
-                    self.editdate = self.editdate.split(' AM')[0]
-                except:
-                    pass
-                try:
-                    self.editdate = self.editdate.split(' PM')[0]
-                except:
-                    pass
+                # try:
+                #     self.editdate = self.editdate.split(' AM')[0]
+                # except:
+                #     pass
+                # try:
+                #     self.editdate = self.editdate.split(' PM')[0]
+                # except:
+                 #   pass
                 #dt2 = 
-                self.editstamp = datetime.strptime(self.editdate, "%b %d, %Y %H:%M:%S")
+                self.editstamp = datetime.strptime(self.editdate, "%b %d, %Y %H:%M:%S %p")
                 self.edit_time = self.editstamp - self.poststamp
             else:
                 self.editstamp, self.edit_time = None, None
@@ -517,7 +517,7 @@ class StatTracker:
                         #days, hours, minutes = post.edit_time.days * 86400, post.edit_time.seconds // 3600, post.edit_time.seconds // 60 % 60
                         #daytotal += days
                         #hourtotal += hours
-                        print(f'got post {post.url} w times {post.poststamp}, {post.editstamp}, {post.edit_time}, {post.edit_status}')
+                        #print(f'got post {post.url} w times {post.poststamp}, {post.editstamp}, {post.edit_time}, {post.edit_status}')
                         total += post.edit_time.seconds
                         count += 1
                         if min_ is None or post.edit_time < min_.edit_time:
@@ -692,6 +692,8 @@ class SiteDB:
                 if thread.url not in self.cache[category.name].threads.keys():
                     li.append(thread.url)
 
+        return li
+
     def compare(self, src):
         if src is not None and src:
             self.users.merge(src.users)
@@ -745,7 +747,7 @@ class SiteDB:
             print(f'Min edit time: {self.stats.min_time[category].edit_time} on {self.stats.min_time[category].__str__()}\n')
             print(f'Max edit time: {self.stats.max_time[category].edit_time} on {self.stats.max_time[category].__str__()}\n')
             print('Posts edited in under five minutes: ')
-            for post in self.stats.under_five[category].values():
+            for post in self.stats.under_five[category]:
                 print(f'Post {post.__str__()} edited in {post.edit_time}')
             print(f'User statistics for category {category}:')
             if category in self.stats.user_deletions.keys():

@@ -6,7 +6,6 @@ from header import *
 class ThreadScraper:
     def __init__(self, driver, sitedb: SiteDB, debug=False):
         #Instantiate soup object and inherit logger.
-        self.soup = None
         self.driver = driver
         self.logger = logging.getLogger(__name__)
         self.page = 0
@@ -16,10 +15,13 @@ class ThreadScraper:
     def update_page(self, pagenum):
         self.page = pagenum
 
-    def make_soup(self, html, url):
+    def make_soup(self, html, url, categ):
         """Main thread scraper function. Uses BeautifulSoup to parse HTML based on class tags and 
         compiles relevant data/metadata in dict format. Detects edit status and moderation status."""
-        self.soup = BeautifulSoup(html.encode('utf-8'), 'html.parser')
+        try:
+            soup = BeautifulSoup(html.encode('utf-8').strip(), 'html.parser')
+        except:
+            soup = BeautifulSoup(html.encode('utf-8').strip(), 'lxml')
         userlist = UserList([])
         postlist = PostList([])
         if len(self.db.pred.keys()) > 0:
@@ -28,22 +30,23 @@ class ThreadScraper:
             oldest_index = 0
 
         try:
-            title = self.soup.find('h1', class_='lia-message-subject-banner lia-component-forums-widget-message-subject-banner')\
+            title = soup.find('h1', class_='lia-message-subject-banner lia-component-forums-widget-message-subject-banner')\
                 .text.replace('\n\t', '').replace('\n', '').replace('\u00a0', '')
         except:
-            self.logger.warning(traceback.format_exc())
+            title = url.split(categ + '/')[1].split('/td-p')[0].replace('-', ' ')
+            
         try:
-            post_date = self.soup.find('span', class_='DateTime lia-message-posted-on lia-component-common-widget-date')\
+            post_date = soup.find('span', class_='DateTime lia-message-posted-on lia-component-common-widget-date')\
                 .find('span', class_='message_post_text').text
         except:
             self.logger.warning(traceback.format_exc())
         try:
-            edit_date = self.soup.find('span', class_='DateTime lia-message-edited-on lia-component-common-widget-date')\
+            edit_date = soup.find('span', class_='DateTime lia-message-edited-on lia-component-common-widget-date')\
                 .find('span', class_='message_post_text').text
         except AttributeError:
             edit_date = 'Unedited'
         #contributors = {}
-        pages = self.get_page_numbers()
+        pages = self.get_page_numbers(soup)
         start = pages
         #seen = []
         if start > 25:
@@ -55,7 +58,7 @@ class ThreadScraper:
         debugli = []
         post_total = str(10 * pages)
         try:
-            op = self.soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-reply')
+            op = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-reply')
         except:
             op = None
 
@@ -74,11 +77,11 @@ class ThreadScraper:
                 pass
             else:
                 self.driver.get(self.generate_next(url, pagenum))
-                time.sleep(3)
-                self.soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+                #time.sleep(3)
+                soup = BeautifulSoup(self.driver.page_source, 'html.parser')
 
             try:
-                op = self.soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-topic')
+                op = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-topic')
             except:
                 op = None
             try:
@@ -86,11 +89,11 @@ class ThreadScraper:
             except:
                 author = ''
             try:
-                unread = self.soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-reply')
+                unread = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-reply')
             except:
                 unread = None
             try:
-                solved = self.soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-reply lia-list-row-thread-solved')
+                solved = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-reply lia-list-row-thread-solved')
             except:
                 solved = None
 
@@ -194,8 +197,8 @@ class ThreadScraper:
     def generate_next(self, url, _iter):
         return url + f'/page/{_iter}'
 
-    def get_page_numbers(self):
-        menubar = self.soup.find('div', class_='lia-paging-full-wrapper lia-paging-pager lia-paging-full-left-position lia-component-menu-bar')
+    def get_page_numbers(self, soup):
+        menubar = soup.find('div', class_='lia-paging-full-wrapper lia-paging-pager lia-paging-full-left-position lia-component-menu-bar')
         if menubar is not None:
             last = menubar.find('li', class_='lia-paging-page-last')
             try:

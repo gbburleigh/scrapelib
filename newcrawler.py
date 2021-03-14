@@ -1,6 +1,7 @@
 import sys, os, time, json, logging, schedule, traceback, inspect, csv
 from newscraper import ThreadScraper
 from selenium.common.exceptions import StaleElementReferenceException
+from selenium.common.exceptions import InvalidSessionIdException
 from header import *
 from datetime import datetime
 from progress.bar import Bar
@@ -26,24 +27,24 @@ class Crawler:
         and scrapes each URL sequentially. TODO: Add additional forums, processes"""
         
         #Iterate through given category pages
-        with Bar('Crawling...', max = 453) as bar:
+        with Bar(f'Crawling...', max = 453) as bar:
             for target in self.targets:
                 #Fetch page 
-                self.driver.get(str(target))
+                self.driver.get(target)
 
                 #Backend params
-                time.sleep(3)
+                #time.sleep(3)
                 start = datetime.now()
 
                 category = self.parse_page(target, bar)
-                #print(f'Created CATEGORY: {category.__str__()}')
+                print(f'Created CATEGORY: {category.__str__()}')
                 #self.db.add(category)
                 threads = self.db.get_remaining(category)
                 if len(threads) > 0:
                     for url in threads:
                         self.driver.get(url)
-                        time.sleep(3)
-                        thread = self.scraper.make_soup(self.driver.page_source, url)
+                        #time.sleep(3)
+                        thread = self.scraper.make_soup(self.driver.page_source, url, category.name)
                         category.add(thread)
 
                 self.db.add(category)
@@ -53,7 +54,7 @@ class Crawler:
     def parse_page(self, tar, bar):
 
         self.driver.get(tar)
-        time.sleep(3)
+        #time.sleep(3)
         
         threadli = []
         for currentpage in range(1, self.max_page_scroll + 1):
@@ -63,7 +64,7 @@ class Crawler:
                 pass
             else:
                 self.driver.get(self.generate_next(tar, currentpage))
-                time.sleep(3)
+                #time.sleep(3)
 
             urls = self.get_links("//a[@class='page-link lia-link-navigation lia-custom-event']")
 
@@ -71,19 +72,23 @@ class Crawler:
                 if url in self.skipped:
                     continue
                 self.driver.get(url)
-                time.sleep(3)
+                #self.current_url = url
+                #time.sleep(3)
                 try:
-                    thread = self.scraper.make_soup(self.driver.page_source, url)
-                except:
+                    thread = self.scraper.make_soup(self.driver.page_source, url, tar.split('/t5/')[1].split('/')[0])
+                except InvalidSessionIdException:
                     try:
                         self.driver.get(url)
-                        time.sleep(3)
-                        thread = self.scraper.make_soup(self.driver.page_source, url)
+                        #time.sleep(3)
+                        thread = self.scraper.make_soup(self.driver.page_source, url, tar.split('/t5/')[1].split('/')[0])
                     except Exception as e:
-                        #print(e)
-                        pass
+                        print(e)
+                        
+                except Exception as e:
+                    print(e)
+                    thread = None
                 #print(f'Generated thread: {thread.__str__()}')
-                if thread.post_count != 0:
+                if thread is not None and thread.post_count != 0:
                     threadli.append(thread)
                 bar.next()
 

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Scrape Results - Hatim/Graham</title>
+</head>
+<body>
+    <p>
+    title,post_date,edit_date,contributor_id,contributor_rank,message_text,post_moderation,category,url
+        <table class="table table-striped table-sm">
+            <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Posted On</th>
+                  <th>Edited On</th>
+                  <th>User ID</th>
+                  <th>User Rank</th>
+                  <th>Message Text</th>
+                  <th>Moderation Status</th>
+                  <th>Category</th>
+                  <th>URL</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for value in csvlist %}
+                    <tr>
+                    <td>{{ value[0] }}</td>
+                    <td>{{ value[1] }}</td>
+                    <td>{{ value[2] }}</td>
+                    <td>{{ value[3] }}</td>
+                    <td>{{ value[4] }}</td>
+                    <td>{{ value[5] }}</td>
+                    <td>{{ value[6] }}</td>
+                    <td>{{ value[7] }}</td>
+                    <td><a href={{ value[8] }}>link</a></td>
+                    </tr>
+                {% endfor %}
+            </tbody> 
+        </table>
+    </p>
+</body>
+</html>
