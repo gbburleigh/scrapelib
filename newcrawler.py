@@ -1,10 +1,12 @@
-import sys, os, time, json, logging, schedule, datetime, traceback, inspect, csv
+import sys, os, time, json, logging, schedule, traceback, inspect, csv
 from newscraper import ThreadScraper
 from selenium.common.exceptions import StaleElementReferenceException
 from header import *
+from datetime import datetime
+from progress.bar import Bar
 
 class Crawler:
-    def __init__(self, driver, sitedb: SiteDB, debug=False, target='upwork', max_page_scroll=20):
+    def __init__(self, driver, sitedb: SiteDB, debug=False, target='upwork', max_page_scroll=5):
         #Inherit objects and instantiate scraper class
         self.driver = driver
         self.max_page_scroll = max_page_scroll
@@ -14,37 +16,47 @@ class Crawler:
             self.scraper = ThreadScraper(self.driver, self.db, debug=True)
         else:
             self.scraper = ThreadScraper(self.driver, self.db)
-        self.targets = ['https://community.upwork.com/t5/Freelancers/bd-p/freelancers',\
-                        'https://community.upwork.com/t5/Announcements/bd-p/news',\
+        self.targets = ['https://community.upwork.com/t5/Announcements/bd-p/news',\
                         'https://community.upwork.com/t5/Clients/bd-p/clients', \
-                        'https://community.upwork.com/t5/Agencies/bd-p/Agencies']
+                        #'https://community.upwork.com/t5/Agencies/bd-p/Agencies', \
+                        'https://community.upwork.com/t5/Freelancers/bd-p/freelancers']
 
     def crawl(self):
         """Main crawler function. For each specified target URL, fetches thread data
         and scrapes each URL sequentially. TODO: Add additional forums, processes"""
         
         #Iterate through given category pages
-        for target in self.targets:
-            #Fetch page 
-            self.driver.get(target)
+        with Bar('Crawling...', max = 453) as bar:
+            for target in self.targets:
+                #Fetch page 
+                self.driver.get(str(target))
 
-            #Backend params
-            time.sleep(3)
-            start = datetime.datetime.now()
+                #Backend params
+                time.sleep(3)
+                start = datetime.now()
 
-            category = self.parse_page(target)
-            print(f'Created CATEGORY: {category.__str__()}')
-            self.db.add(category)
+                category = self.parse_page(target, bar)
+                #print(f'Created CATEGORY: {category.__str__()}')
+                #self.db.add(category)
+                threads = self.db.get_remaining(category)
+                if len(threads) > 0:
+                    for url in threads:
+                        self.driver.get(url)
+                        time.sleep(3)
+                        thread = self.scraper.make_soup(self.driver.page_source, url)
+                        category.add(thread)
+
+                self.db.add(category)
 
         return self.db
 
-    def parse_page(self, tar):
+    def parse_page(self, tar, bar):
 
         self.driver.get(tar)
         time.sleep(3)
         
         threadli = []
-        for currentpage in range(1, self.max_page_scroll):
+        for currentpage in range(1, self.max_page_scroll + 1):
 
             self.scraper.update_page(currentpage)
             if currentpage == 1:
@@ -67,10 +79,13 @@ class Crawler:
                         self.driver.get(url)
                         time.sleep(3)
                         thread = self.scraper.make_soup(self.driver.page_source, url)
-                    except:
-                        print('SOMETHING REALLY WENT WRONG!!!!!!!')
-                print(f'Generated thread: {thread.__str__()}')
-                threadli.append(thread)
+                    except Exception as e:
+                        #print(e)
+                        pass
+                #print(f'Generated thread: {thread.__str__()}')
+                if thread.post_count != 0:
+                    threadli.append(thread)
+                bar.next()
 
         return Category(threadli, tar.split('/t5/')[1].split('/')[0])
 

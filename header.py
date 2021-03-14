@@ -1,4 +1,5 @@
-import hashlib, json, os, sys, datetime, csv, random
+import hashlib, json, os, sys, csv, random
+from datetime import datetime
 
 class User:
     def __init__(self, name, joindate, url, rank):
@@ -79,20 +80,21 @@ class Post:
 
         date_format = "%b %d, %Y %H:%M:%S"
         if self.postdate != '':
-            dt = datetime.datetime.strptime(self.postdate, date_format)
-            self.poststamp = dt
+            #dt = datetime.strptime(self.postdate, "%b %d, %Y %H:%M:%S")
+            self.poststamp = datetime.strptime(self.postdate, "%b %d, %Y %H:%M:%S")
+            #self.poststamp = maya.parse(self.postdate).datetime()
             if self.editdate != '':
                 try:
-                    self.editdate = self.postdate.split(' AM')[0]
+                    self.editdate = self.editdate.split(' AM')[0]
                 except:
                     pass
                 try:
-                    self.editdate = self.postdate.split(' PM')[0]
+                    self.editdate = self.editdate.split(' PM')[0]
                 except:
                     pass
-                dt2 = datetime.datetime.strptime(self.editdate, date_format)
-                self.editstamp = dt2
-                self.edit_time = dt2 - dt
+                #dt2 = 
+                self.editstamp = datetime.strptime(self.editdate, "%b %d, %Y %H:%M:%S")
+                self.edit_time = self.editstamp - self.poststamp
             else:
                 self.editstamp, self.edit_time = None, None
 
@@ -116,7 +118,7 @@ class Post:
         self.edited = user
 
     def str_to_td(self, s):
-        t = datetime.datetime.strptime(s,"%H:%M:%S")
+        t = datetime.strptime(s,"%H:%M:%S")
         # ...and use datetime's hour, min and sec properties to build a timedelta
         delta = datetime.timedelta(hours=t.hour, minutes=t.minute, seconds=t.second)
         return delta
@@ -343,6 +345,11 @@ class Thread:
         for post in self.postlist.postlist:
             self.users.handle_user(post.author)
         self.post_count = d['post_count']
+        if len(self.postlist.postlist) > 0:
+            self.oldest_index = min([post.index for post in self.postlist.postlist])
+        else:
+            self.oldest_index = 0
+
 
     def refresh_count(self):
         self.post_count = self.postlist.post_count
@@ -389,6 +396,7 @@ class Category:
         self.name = name
         self.threads = {}
         self.threadlist = threads
+        self.oldest = Thread(PostList([]), '', '', '', '', '', '', '', UserList([]), '0')
         if len(threads) > 0:
             for thread in threads:
                 self.threads[thread.url] = thread
@@ -397,8 +405,8 @@ class Category:
 
     def find_oldest(self):
         for url, thread in self.threads.items():
-            dt = datetime.datetime.strptime(thread.postdate, "%b %d, %Y %I:%M:%S %p")
-            if dt < datetime.datetime.strptime(self.oldest.postdate, "%b %d, %Y %I:%M:%S %p"):
+            dt = datetime.strptime(thread.postdate, "%b %d, %Y %I:%M:%S %p")
+            if dt < datetime.strptime(self.oldest.postdate, "%b %d, %Y %I:%M:%S %p"):
                 self.oldest = thread
 
 
@@ -448,6 +456,9 @@ class StatTracker:
         self.avg_edit_time = {}
         self.avg_timestamp = {}
         self.edit_times = {}
+        self.min_time = {}
+        self.max_time = {}
+        self.under_five = {}
         if src is not None and type(src) is dict:
             self.deletions = src['deletions']
             self.modifications = src['modifications']
@@ -497,24 +508,43 @@ class StatTracker:
     def update_edit_time(self, src):
         #count, daytotal, hourtotal, minutetotal = 0, 0, 0, 0
         count, total = 0, 0
+        min_ = None
+        max_ = None
         for _, category in src.items():
             for url, thread in category.threads.items():
                 for post in thread.postlist.postlist:
-                    if post.edit_time is not None and post.id not in self.edit_times.keys():
+                    if post.edit_time is not None and post.id not in self.edit_times.keys() and post.edit_status != 'Unedited':
                         #days, hours, minutes = post.edit_time.days * 86400, post.edit_time.seconds // 3600, post.edit_time.seconds // 60 % 60
                         #daytotal += days
                         #hourtotal += hours
+                        print(f'got post {post.url} w times {post.poststamp}, {post.editstamp}, {post.edit_time}, {post.edit_status}')
                         total += post.edit_time.seconds
                         count += 1
+                        if min_ is None or post.edit_time < min_.edit_time:
+                            min_ = post
+                        if max_ is None or post.edit_time > max_.edit_time:
+                            max_ = post
+                        
                         if category.name in self.edit_times.keys():
                             self.edit_times[category.name][post.id] = post.edit_time
                         else:
                             self.edit_times[category.name] = {}
                             self.edit_times[category.name][post.id] = post.edit_time
-                                
 
-            self.avg_edit_time[category.name] = total/count
-            self.sec_to_str(total/count, category.name)
+                        if post.edit_time.seconds < 300:
+                            if category.name in self.under_five.keys():
+                                self.under_five[category.name].append(post)
+                            else:
+                                self.under_five[category.name] = [post]
+                                
+            if count != 0:
+                self.avg_edit_time[category.name] = total/count
+                self.sec_to_str(total/count, category.name)
+            else:
+                self.avg_edit_time[category.name] = 0.0
+                self.sec_to_str(0, category.name)
+            self.min_time[category.name] = min_
+            self.max_time[category.name] = max_
         
     def sec_to_str(self, sec, categ): 
         days = sec // (24 * 3600) 
@@ -538,6 +568,13 @@ class StatTracker:
         d['avg_timestamp'] = self.avg_timestamp
         d['avg_edit_time'] = self.avg_edit_time
         d['edit_times'] = {}
+        d['under_five'] = {}
+        d['min_time'] = {}
+        d['max_time'] = {}
+        for category in self.max_time.keys():
+            d['max_time'][category] = self.max_time[category].__json__()
+        for category in self.min_time.keys():
+            d['min_time'][category] = self.min_time[category].__json__()
         for category, post in self.edit_times.items():
             d['edit_times'][category] = {}
             for pid, edit_time in post.items():
@@ -552,6 +589,12 @@ class StatTracker:
         self.edit_times = src['edit_times']
         self.avg_edit_time = src['avg_edit_time']
         self.avg_timestamp = src['avg_timestamp']
+        try:
+            self.min_time = src['min_time']
+            self.max_time = src['max_time']
+            self.under_five = src['under_five']
+        except:
+            pass
 
 class SiteDB:
     def __init__(self, categories: [Category], name):
@@ -599,7 +642,7 @@ class SiteDB:
             pass
 
         if len(filenames) != 0:
-            newest_file = str(max([datetime.datetime.strptime(x.strip('.json'), '%Y-%m-%d') for x in filenames]).date()) + '.json'
+            newest_file = str(max([datetime.strptime(x.strip('.json'), '%Y-%m-%d') for x in filenames]).date()) + '.json'
             with open(os.getcwd() + '/cache/logs/{}'.format(newest_file), 'r') as f:
                 d = json.load(f)
                 self.dict_load(d)
@@ -642,6 +685,13 @@ class SiteDB:
             self.categories.append(c)
         self.stats.load(d['stats'])
 
+    def get_remaining(self, category: Category):
+        li = []
+        if category.name in self.cache.keys() and category.name in self.pred.keys():
+            for thread in self.pred[category.name].threadlist:
+                if thread.url not in self.cache[category.name].threads.keys():
+                    li.append(thread.url)
+
     def compare(self, src):
         if src is not None and src:
             self.users.merge(src.users)
@@ -658,13 +708,13 @@ class SiteDB:
         return self.deletes
 
     def write(self):
-        now = datetime.datetime.now().strftime("%Y-%m-%d")
+        now = datetime.now().strftime("%Y-%m-%d")
         with open(os.getcwd() + '/cache/logs/{}.json'.format(now), 'w') as f:
             #data = dict(self.cache)
             d = self.compile()
             f.write(json.dumps(d, indent=4))
         
-        with open(os.getcwd() + f'/cache/csv/{datetime.datetime.now().strftime("%Y-%m-%d")}.csv', "w") as f:
+        with open(os.getcwd() + f'/cache/csv/{datetime.now().strftime("%Y-%m-%d")}.csv', "w") as f:
             f = csv.writer(f)
             f.writerow(["title", "post_date", "edit_date", "contributor_id", \
                     "contributor_rank", "message_text",\
@@ -683,19 +733,24 @@ class SiteDB:
 
     def report(self):
         for category in self.stats.deletions.keys():
-            print(f'{self.stats.deletions[category]} posts no longer found in category {category}')
+            print(f'{self.stats.deletions[category]} posts no longer found in category {category}\n')
         for category in self.stats.modifications.keys():
-            print(f'{self.stats.modifications[category]} posts moderated in category {category}')
+            print(f'{self.stats.modifications[category]} posts moderated in category {category}\n')
         for category in self.stats.avg_timestamp.keys():
             days = self.stats.avg_timestamp[category]['days']
             hours = self.stats.avg_timestamp[category]['hours']
             mins = self.stats.avg_timestamp[category]['minutes']
             secs = self.stats.avg_timestamp[category]['seconds']
-            print(f'Average moderation time on a post in category {category} was {days} days, {hours} hours, {mins} minutes, {secs} seconds')
+            print(f'Average moderation time on a post in category {category} was {days} days, {hours} hours, {mins} minutes, {secs} seconds\n')
+            print(f'Min edit time: {self.stats.min_time[category].edit_time} on {self.stats.min_time[category].__str__()}\n')
+            print(f'Max edit time: {self.stats.max_time[category].edit_time} on {self.stats.max_time[category].__str__()}\n')
+            print('Posts edited in under five minutes: ')
+            for post in self.stats.under_five[category].values():
+                print(f'Post {post.__str__()} edited in {post.edit_time}')
             print(f'User statistics for category {category}:')
-        for category in self.stats.user_deletions.keys():
-            for uid, count in self.stats.user_deletions[category].items():
-                print(f'User {uid} had {count} posts no longer found')
-        for category in self.stats.user_modifications.keys():
-            for uid, count in self.stats.user_modifications[category].items():
-                print(f'User {uid} had {count} posts moderated')
+            if category in self.stats.user_deletions.keys():
+                for uid, count in self.stats.user_deletions[category].items():
+                    print(f'User {uid} had {count} posts no longer found')
+            if category in self.stats.user_modifications.keys():
+                for uid, count in self.stats.user_modifications[category].items():
+                    print(f'User {uid} had {count} posts moderated')

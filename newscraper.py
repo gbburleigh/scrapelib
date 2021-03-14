@@ -1,5 +1,6 @@
-import sys, os, time, json, logging, datetime, traceback, inspect, uuid, hashlib, random
+import sys, os, time, json, logging, traceback, inspect, uuid, hashlib, random
 from bs4 import BeautifulSoup
+from datetime import datetime
 from header import *
 
 class ThreadScraper:
@@ -24,7 +25,7 @@ class ThreadScraper:
         if len(self.db.pred.keys()) > 0:
             oldest_index = self.db.find_oldest_index(url)
         else:
-            oldest_index = None
+            oldest_index = 0
 
         try:
             title = self.soup.find('h1', class_='lia-message-subject-banner lia-component-forums-widget-message-subject-banner')\
@@ -50,7 +51,7 @@ class ThreadScraper:
         else:
             end = 1
         #msg_cache = {}
-        now = datetime.datetime.now()
+        now = datetime.now()
         debugli = []
         post_total = str(10 * pages)
         try:
@@ -68,7 +69,7 @@ class ThreadScraper:
 
         for pagenum in range(start, end - 1, -1):
             self.logger.info(f'Currently on page {pagenum} of {url}')
-            print(f'Currently on page {pagenum} of {url}')
+            #print(f'Currently on page {pagenum} of {url}')
             if pagenum == 1:
                 pass
             else:
@@ -110,15 +111,18 @@ class ThreadScraper:
                 member_since = msg.find('span', class_='custom-upwork-member-since').text.split(': ')[1]
                 rank = msg.find('div', class_='lia-message-author-rank lia-component-author-rank lia-component-message-view-widget-author-rank')\
                     .text.replace(' ', '').strip()
-                timestamp = msg.find('span', class_='DateTime lia-message-posted-on lia-component-common-widget-date')\
+                dateheader = msg.find('p', class_='lia-message-dates lia-message-post-date lia-component-post-date-last-edited lia-paging-page-link custom-lia-message-dates')
+                timestamp = dateheader.find('span', class_='DateTime lia-message-posted-on lia-component-common-widget-date')\
                             .find('span', class_='message_post_text').text
                 try:
-                    editdate = msg.find('span', class_='DateTime lia-message-edited-on lia-component-common-widget-date')\
-                                .find('span', class_='message_post_text').text
+                    e = dateheader.find('span', class_='DateTime lia-message-edited-on lia-component-common-widget-date')
+                    for span in e.find_all('span', class_='message_post_text'):
+                        if span.text != 'by':
+                            editdate = span.text
                 except:
                     editdate = ''
                 try:
-                    edited_by = msg.find('span', class_='DateTime lia-message-edited-on lia-component-common-widget-date')\
+                    edited_by = dateheader.find('span', class_='DateTime lia-message-edited-on lia-component-common-widget-date')\
                         .find('span', class_='UserName lia-user-name lia-user-rank-Power-Member lia-component-common-widget-user-name')\
                             .find('a').find('span').text
                 except:
@@ -142,15 +146,17 @@ class ThreadScraper:
                     index = str((10 * pages) - idx)
 
                 date_format = "%b %d, %Y %I:%M:%S %p"
-                dt = datetime.datetime.strptime(postdate, date_format)
-                now = datetime.datetime.now()
+                dt = datetime.strptime(postdate, date_format)
+                now = datetime.now()
                 if (now-dt).days > 7:
                     if oldest_index is not None:
                         if int(index) < oldest_index:
                             expired = True
+                            #print(f'post is more than a week old, and were past our open index {oldest_index} at index {index}')
                             break
                     else:
                         expired = True
+                        #print('post is a week old and we have no oldest index, continuing')
                         break
                 
                 body = msg.find('div', class_='lia-message-body-content').find_all(['p', 'ul'])
@@ -173,7 +179,7 @@ class ThreadScraper:
                         p = Post(postdate, editdate + f'({user_id})', post, u, url, pagenum, index, url.split('/t5/')[1].split('/')[0])
                     else:
                         p = Post(postdate, editdate, post, u, url, pagenum, index, url.split('/t5/')[1].split('/')[0])
-                    print(f'Generated post: {p.__str__()}')
+                    #print(f'Generated post: {p.__str__()}')
                     if user_id != '':
                         p.add_edited(u)
                     else:

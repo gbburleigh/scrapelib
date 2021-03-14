@@ -3,13 +3,14 @@ import sys,os, signal
 #Configure packages FIXME
 if sys.prefix == sys.base_prefix:
     import subprocess
-    print('Configuring...')
+    #print('Configuring...')
     os.system('. resources/activate.sh')
 
-import time, json, logging, schedule, datetime, atexit, csv
+import time, json, logging, schedule, atexit, csv
 from selenium import webdriver
 from newcrawler import Crawler
 from header import *
+from datetime import datetime
 
 class Driver:
     def __init__(self, flush=False, start=None):
@@ -61,6 +62,7 @@ class Driver:
             crawler = Crawler(self.webdriver, self.db, debug=True)
         else:
             crawler = Crawler(self.webdriver, self.db)
+        self.db.pred = old_db.cache
         self.db = crawler.crawl()
         if '-d' in sys.argv:
             deletes = self.db.compare(old_db)
@@ -99,7 +101,7 @@ class Driver:
  
 if __name__ == "__main__":
     #Run test functions
-    now = datetime.datetime.now()
+    now = datetime.now()
     d = Driver(start=now)
     if '-flush' in sys.argv:
         d.flush()
