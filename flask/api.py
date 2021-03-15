@@ -6,11 +6,11 @@ app = Flask(__name__, template_folder=os.getcwd() + '/templates/')
 
 _, _, filenames = next(os.walk(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/cache/csv/'))
 if len(filenames) > 0:
-    csv_path = str(max([datetime.strptime(x.strip('.csv'), '%Y-%m-%d') for x in filenames]).date()) + '.csv'
+    fn = str(max([datetime.strptime(x.strip('.csv'), '%Y-%m-%d') for x in filenames]).date()) + '.csv'
 else:
-    csv_path = None
+    fn = None
 
-csv_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/cache/csv/' + csv_path
+csv_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/cache/csv/' + fn
 
 # if csv_path is not None:
 #     print(csv_path)
