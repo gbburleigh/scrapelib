@@ -629,7 +629,10 @@ class SiteDB:
         self.cache = {}
         self.categories = categories
         self.stats = StatTracker()
-        
+        now = datetime.now()
+        self.last_scan = now
+        self.scan_start = now
+
         if len(categories) > 0:
             for category in categories:
                 self.cache[category.name] = category
@@ -643,6 +646,9 @@ class SiteDB:
             self.users.merge(thread.users)
         self.stats.update_modifications(self.cache)
         self.stats.update_edit_time(self.cache)
+
+    def set_start(self, dt):
+        self.scan_start = dt
 
     def find_oldest_index(self, url):
         for category in self.pred.keys():
@@ -690,6 +696,8 @@ class SiteDB:
             d['cache'][category.name] = category.__json__()
             d['categories'].append(category.__json__())
         d['stats'] = self.stats.__json__()
+        if self.last_scan is not None:
+            d['last_scan'] = self.last_scan
 
         return d
 
@@ -708,6 +716,10 @@ class SiteDB:
             self.cache[name] = c
             self.categories.append(c)
         self.stats.load(d['stats'])
+        try:
+            self.last_scan = d['last_scan']
+        except:
+            self.last_scan = datetime.now()
 
     def get_remaining(self, category: Category):
         li = []
@@ -758,8 +770,21 @@ class SiteDB:
         self.report()
 
     def report(self):
-        for category in self.stats.deletions.keys():
-            print(f'{self.stats.deletions[category]} posts no longer found in category {category}\n')
+        now = datetime.now()
+        diff = now - self.last_scan
+        dur =  now - self.scan_start
+        days, hours, minutes = diff.days, diff.seconds // 3600, diff.seconds // 60 % 60
+        durdays, durhours, durmins = dur.days, dur.seconds // 3600, dur.seconds // 60 % 60
+        print(f'Scan took {durhours} hours, {durmins} minutes\n')
+        print(f'{days} days, {hours} hours, and {minutes} minutes since last scan.\n')
+        if len(self.stats.deletions.keys()) > 0:
+            for category in self.stats.deletions.keys():
+                if self.stats.deletions[category] > 0:
+                    print(f'{self.stats.deletions[category]} posts no longer found in category {category}\n')
+                else:
+                    print(f'No posts found deleted in category {category}\n')
+        else:
+            print('No deletions detected since last scan.')
         for category in self.stats.modifications.keys():
             print(f'{self.stats.modifications[category]} posts moderated in category {category}\n')
         for category in self.stats.avg_timestamp.keys():

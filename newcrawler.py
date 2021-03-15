@@ -28,6 +28,8 @@ class Crawler:
         
         #Iterate through given category pages
         with Bar(f'Crawling...', max = 453) as bar:
+            now = datetime.now()
+            self.db.set_start(now)
             for target in self.targets:
                 #Fetch page 
                 self.driver.get(target)

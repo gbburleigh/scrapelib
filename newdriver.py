@@ -20,23 +20,10 @@ class Driver:
             from webdriver_manager import firefox
             from webdriver_manager.firefox import GeckoDriverManager
             options = Options()
-            options.add_argument('--headless')
+            #options.add_argument('--headless')
             try:
                 self.webdriver = webdriver.Firefox(executable_path=GeckoDriverManager().install(), \
                     firefox_options=options, log_path=os.getcwd() + '/cache/sys/geckodriver.log')
-            except OSError:
-                import subprocess
-                try:
-                    out = subprocess.check_output(['lsof', '/home/gbb5412/.wdm/drivers/geckodriver/linux64/v0.29.0/geckodriver'],\
-                        stderr=open(os.devnull, 'w'))
-                    pids = []
-                    lines = out.strip().split('\n')
-                    for line in lines:
-                        pids.append(int(line))
-                    for pid in pids:
-                        subprocess.call(['kill', pid])
-                    self.webdriver = webdriver.Firefox(executable_path=GeckoDriverManager().install(), \
-                        firefox_options=options, log_path=os.getcwd()+ '/cache/sys/geckodriver.log')
                 except:
                     self.close()
         else:
