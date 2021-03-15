@@ -38,8 +38,9 @@ class Driver:
                 options.add_argument('--headless')
                 options.add_argument('--disable-gpu')
                 self.webdriver = webdriver.Chrome(options=options)
-            else:
-                self.close()
+            except Exception as e:
+                print(e)
+                sys.exit()
         else:
             from selenium.webdriver.chrome.options import Options
             from webdriver_manager import chrome
