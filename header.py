@@ -630,8 +630,8 @@ class SiteDB:
         self.categories = categories
         self.stats = StatTracker()
         now = datetime.now()
-        self.last_scan = now
-        self.scan_start = now
+        self.last_scan = now.strftime("%Y-%m-%d %H:%M:%S")
+        self.scan_start = now.strftime("%Y-%m-%d %H:%M:%S")
 
         if len(categories) > 0:
             for category in categories:
@@ -771,8 +771,8 @@ class SiteDB:
 
     def report(self):
         now = datetime.now()
-        diff = now - self.last_scan
-        dur =  now - self.scan_start
+        diff = now - datetime.strptime(self.last_scan, "%Y-%m-%d %H:%M:%S")
+        dur =  now - datetime.strptime(self.scan_start, "%Y-%m-%d %H:%M:%S")
         days, hours, minutes = diff.days, diff.seconds // 3600, diff.seconds // 60 % 60
         durdays, durhours, durmins = dur.days, dur.seconds // 3600, dur.seconds // 60 % 60
         print(f'Scan took {durhours} hours, {durmins} minutes\n')
