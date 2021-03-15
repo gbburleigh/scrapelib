@@ -24,8 +24,8 @@ class Driver:
             try:
                 self.webdriver = webdriver.Firefox(executable_path=GeckoDriverManager().install(), \
                     firefox_options=options, log_path=os.getcwd() + '/cache/sys/geckodriver.log')
-                except:
-                    self.close()
+            except:
+                self.close()
         else:
             from selenium.webdriver.chrome.options import Options
             from webdriver_manager import chrome
