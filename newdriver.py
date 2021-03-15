@@ -21,6 +21,8 @@ class Driver:
             from webdriver_manager.firefox import GeckoDriverManager
             options = Options()
             #options.add_argument('--headless')
+            options.add_argument('--headless')
+            options.add_argument('--disable-gpu')
             try:
                 self.webdriver = webdriver.Firefox(executable_path=GeckoDriverManager().install(), \
                     firefox_options=options, log_path=os.getcwd() + '/cache/sys/geckodriver.log')
