@@ -22,15 +22,24 @@ class Driver:
             options = Options()
             #options.add_argument('--headless')
             options.add_argument('--headless')
-            options.add_argument("start-maximized")
-            options.add_argument("disable-infobars")
-            options.add_argument("--disable-extensions")
+            #options.add_argument("start-maximized")
+            #options.add_argument("disable-infobars")
+            #options.add_argument("--disable-extensions")
             #options.add_argument('--no-sandbox')
-            options.add_argument('--disable-application-cache')
+            #options.add_argument('--disable-application-cache')
             options.add_argument('--disable-gpu')
-            options.add_argument("--disable-dev-shm-usage")
+            #options.add_argument("--disable-dev-shm-usage")
             self.webdriver = webdriver.Firefox(executable_path=GeckoDriverManager().install(), \
                 firefox_options=options)
+        elif '-c' in sys.argv:
+            try:
+                import chromedriver_binary
+                options = Options()
+                options.add_argument('--headless')
+                options.add_argument('--disable-gpu')
+                self.webdriver = webdriver.Chrome(options=options)
+            else:
+                self.close()
         else:
             from selenium.webdriver.chrome.options import Options
             from webdriver_manager import chrome
@@ -39,6 +48,7 @@ class Driver:
             options.add_argument('--headless')
             options.add_argument('--disable-gpu')
             self.webdriver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
+
 
         #Configure scheduling
         schedule.every().day.at('00:00').do(self.run)

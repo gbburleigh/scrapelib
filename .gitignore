@@ -2,3 +2,5 @@ scrape_env/
 scrape-env/
 scrapelib.code-workspace
 cache/
+geckodriver.log
+debug.log

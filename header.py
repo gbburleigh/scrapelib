@@ -648,7 +648,7 @@ class SiteDB:
         self.stats.update_edit_time(self.cache)
 
     def set_start(self, dt):
-        self.scan_start = dt
+        self.scan_start = dt.strftime("%Y-%m-%d %H:%M:%S")
 
     def find_oldest_index(self, url):
         for category in self.pred.keys():
@@ -719,7 +719,8 @@ class SiteDB:
         try:
             self.last_scan = d['last_scan']
         except:
-            self.last_scan = datetime.now()
+            now = datetime.now()
+            self.last_scan = now.strftime("%Y-%m-%d %H:%M:%S")
 
     def get_remaining(self, category: Category):
         li = []
@@ -738,7 +739,15 @@ class SiteDB:
                     if url in src.cache[category.name].threads.keys():
                         self.deletes[url] = thread.compare(src.cache[category.name].threads[url])
                         for post in self.deletes[url].deletelist:
+                            print(f'Post {post.__str__()} no longer found')
                             self.users.handle_user(post.author)
+                    else:
+                        li = []
+                        for post in thread.threadlist:
+                            li.append(post)
+                            print(f'Post {post.__str__()} no longer found since URL wasnt found in new cache')
+                        d = DeleteList(li)
+                        self.deletes[url] = d
 
         for deletelist in self.deletes.values():
             self.stats.update_deletions(deletelist)

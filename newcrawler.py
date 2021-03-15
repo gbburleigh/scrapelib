@@ -32,6 +32,7 @@ class Crawler:
             self.db.set_start(now)
             for target in self.targets:
                 #Fetch page 
+                
                 self.driver.get(target)
 
                 #Backend params
