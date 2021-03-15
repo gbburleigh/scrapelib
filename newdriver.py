@@ -34,6 +34,7 @@ class Driver:
         elif '-c' in sys.argv:
             try:
                 import chromedriver_binary
+                from selenium.webdriver.chrome.options import Options
                 options = Options()
                 options.add_argument('--headless')
                 options.add_argument('--disable-gpu')
