@@ -23,11 +23,8 @@ class Driver:
             #options.add_argument('--headless')
             options.add_argument('--headless')
             options.add_argument('--disable-gpu')
-            try:
-                self.webdriver = webdriver.Firefox(executable_path=GeckoDriverManager().install(), \
-                    firefox_options=options, log_path=os.getcwd() + '/cache/sys/geckodriver.log')
-            except:
-                self.close()
+            self.webdriver = webdriver.Firefox(executable_path=GeckoDriverManager().install(), \
+                firefox_options=options)
         else:
             from selenium.webdriver.chrome.options import Options
             from webdriver_manager import chrome
