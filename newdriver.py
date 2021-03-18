@@ -62,11 +62,11 @@ class Driver:
         Handles cache management and garbage collection."""
         old_db = SiteDB([], 'upwork')
         old_db.load()
+        self.db.pred = old_db.cache
         if '-d' in sys.argv:
             crawler = Crawler(self.webdriver, self.db, debug=True)
         else:
             crawler = Crawler(self.webdriver, self.db)
-        self.db.pred = old_db.cache
         self.db = crawler.crawl()
         if '-d' in sys.argv:
             deletes = self.db.compare(old_db)

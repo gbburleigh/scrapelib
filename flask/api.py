@@ -12,20 +12,10 @@ else:
 
 csv_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/cache/csv/' + fn
 
-# if csv_path is not None:
-#     print(csv_path)
-#     csv_read = open(csv_path, 'r')
-#     page =''
-#     while True:
-#         read_data = csv_read.readline()
-#         page += '<p>%s</p>' % read_data
-#         if csv_read.readline() == '':
-#             break
-
 @app.route('/')
 def home():
     data = pandas.read_csv(csv_path, header=0)
     csvlist = list(data.values)
     return render_template('home.html', csvlist=csvlist)
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8000)
+    app.run(debug=True)

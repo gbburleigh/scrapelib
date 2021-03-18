@@ -17,17 +17,23 @@ class Crawler:
             self.scraper = ThreadScraper(self.driver, self.db, debug=True)
         else:
             self.scraper = ThreadScraper(self.driver, self.db)
-        self.targets = ['https://community.upwork.com/t5/Announcements/bd-p/news',\
-                        'https://community.upwork.com/t5/Clients/bd-p/clients', \
-                        #'https://community.upwork.com/t5/Agencies/bd-p/Agencies', \
-                        'https://community.upwork.com/t5/Freelancers/bd-p/freelancers']
+        self.targets = ['https://community.upwork.com/t5/Freelancers/bd-p/freelancers', \
+                        'https://community.upwork.com/t5/Announcements/bd-p/news',\
+                       'https://community.upwork.com/t5/Clients/bd-p/clients', \
+                       'https://community.upwork.com/t5/Agencies/bd-p/Agencies']
 
     def crawl(self):
         """Main crawler function. For each specified target URL, fetches thread data
         and scrapes each URL sequentially. TODO: Add additional forums, processes"""
         
         #Iterate through given category pages
-        with Bar(f'Crawling...', max = 453) as bar:
+        bar_count = len(self.targets) * 30 * self.max_page_scroll
+        for tar in self.targets:
+            if tar.split('/t5/')[1].split('/')[0] == 'Freelancers':
+                bar_count += 1
+            elif tar.split('/t5/')[1].split('/')[0] == 'Announcements':
+                bar_count += 2
+        with Bar(f'Crawling...', max = bar_count) as bar:
             now = datetime.now()
             self.db.set_start(now)
             for target in self.targets:
@@ -36,7 +42,7 @@ class Crawler:
                 self.driver.get(target)
 
                 #Backend params
-                time.sleep(2)
+                #time.sleep(2)
                 start = datetime.now()
 
                 category = self.parse_page(target, bar)
@@ -46,7 +52,7 @@ class Crawler:
                 if len(threads) > 0:
                     for url in threads:
                         self.driver.get(url)
-                        time.sleep(2)
+                        #time.sleep(2)
                         thread = self.scraper.make_soup(self.driver.page_source, url, category.name)
                         category.add(thread)
 
@@ -57,7 +63,7 @@ class Crawler:
     def parse_page(self, tar, bar):
 
         self.driver.get(tar)
-        time.sleep(2)
+        #time.sleep(2)
         
         threadli = []
         for currentpage in range(1, self.max_page_scroll + 1):
@@ -67,7 +73,7 @@ class Crawler:
                 pass
             else:
                 self.driver.get(self.generate_next(tar, currentpage))
-                time.sleep(2)
+                #time.sleep(2)
 
             urls = self.get_links("//a[@class='page-link lia-link-navigation lia-custom-event']")
 
@@ -76,13 +82,13 @@ class Crawler:
                     continue
                 self.driver.get(url)
                 #self.current_url = url
-                time.sleep(2)
+                #time.sleep(2)
                 try:
                     thread = self.scraper.make_soup(self.driver.page_source, url, tar.split('/t5/')[1].split('/')[0])
                 except InvalidSessionIdException:
                     try:
                         self.driver.get(url)
-                        time.sleep(2)
+                        #time.sleep(2)
                         thread = self.scraper.make_soup(self.driver.page_source, url, tar.split('/t5/')[1].split('/')[0])
                     except Exception as e:
                         print(e)
