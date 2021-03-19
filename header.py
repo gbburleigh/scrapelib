@@ -897,11 +897,11 @@ class SiteDB:
                 else:
                     print(f'No posts found deleted in category {category}\n')
 
-        # li = self.compare_pred()
-        # if len(li) > 0:
-        #     print('Posts found deleted w/o DeleteList:\n')
-        #     for post in li:
-        #         print(f'Post {post.__str__()} no longer found\n')
+        li = self.compare_pred()
+        if len(li) > 0:
+            print(f'{len(li)} Posts found deleted w/o DeleteList:\n')
+            #for post in li:
+                #print(f'Post {post.__str__()} no longer found\n')
         else:
             print('No deletions detected since last scan.')
         for category in self.stats.modifications.keys():
@@ -913,16 +913,16 @@ class SiteDB:
             secs = self.stats.avg_timestamp[category]['seconds']
             print(f'Average moderation time on a post in category {category} was {days} days, {hours} hours, {mins} minutes, {secs} seconds\n')
             print(f'Min edit time: {self.stats.min_time[category].edit_time} on {self.stats.min_time[category].__str__()}\n')
-            print(f'Min timestamps: {self.stats.min_time[category].poststamp}, {self.stats.min_time[category].editstamp}')
+            #print(f'Min timestamps: {self.stats.min_time[category].poststamp}, {self.stats.min_time[category].editstamp}')
             print(f'Max edit time: {self.stats.max_time[category].edit_time} on {self.stats.max_time[category].__str__()}\n')
-            print(f'Max timestamps: {self.stats.max_time[category].poststamp}, {self.stats.max_time[category].editstamp}')
-            print('Posts edited in under five minutes: ')
+            #print(f'Max timestamps: {self.stats.max_time[category].poststamp}, {self.stats.max_time[category].editstamp}')
+            #print('Posts edited in under five minutes: ')
             # for post in self.stats.under_five[category]:
             #     print(f'Post {post.__str__()} edited in {post.edit_time}')
             if category in self.stats.under_five.keys():
                 print(f'{len(self.stats.under_five[category])} posts edited in under five minutes for {category}')
-                for post in self.stats.under_five[category]:
-                    print(f'Post {post.__str__()} edited in under five minutes')
+                #for post in self.stats.under_five[category]:
+                    #print(f'Post {post.__str__()} edited in under five minutes')
             # print(f'User statistics for category {category}:')
             # if category in self.stats.user_deletions.keys():
             #     for uid, count in self.stats.user_deletions[category].items():
