@@ -20,28 +20,17 @@ class Driver:
             from webdriver_manager import firefox
             from webdriver_manager.firefox import GeckoDriverManager
             options = Options()
-            #options.add_argument('--headless')
             options.add_argument('--headless')
-            #options.add_argument("start-maximized")
-            #options.add_argument("disable-infobars")
-            #options.add_argument("--disable-extensions")
-            #options.add_argument('--no-sandbox')
-            #options.add_argument('--disable-application-cache')
             options.add_argument('--disable-gpu')
-            #options.add_argument("--disable-dev-shm-usage")
             self.webdriver = webdriver.Firefox(executable_path=GeckoDriverManager().install(), \
-                firefox_options=options)
+            firefox_options=options)
         elif '-c' in sys.argv:
-            try:
-                import chromedriver_binary
-                from selenium.webdriver.chrome.options import Options
-                options = Options()
-                options.add_argument('--headless')
-                options.add_argument('--disable-gpu')
-                self.webdriver = webdriver.Chrome(options=options)
-            except Exception as e:
-                print(e)
-                sys.exit()
+            import chromedriver_binary
+            from selenium.webdriver.chrome.options import Options
+            options = Options()
+            options.add_argument('--headless')
+            options.add_argument('--disable-gpu')
+            self.webdriver = webdriver.Chrome(options=options)
         else:
             from selenium.webdriver.chrome.options import Options
             from webdriver_manager import chrome

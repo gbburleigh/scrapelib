@@ -187,7 +187,6 @@ class Post:
 
     def str_to_td(self, s):
         t = datetime.strptime(s,"%H:%M:%S")
-        # ...and use datetime's hour, min and sec properties to build a timedelta
         delta = datetime.timedelta(hours=t.hour, minutes=t.minute, seconds=t.second)
         return delta
 
@@ -250,10 +249,8 @@ class PostList:
     def __json__(self):
         d = {}
         d['postlist'] = []
-        #d['posts'] = {}
         for post in self.postlist:
             d['postlist'].append(post.__json__())
-            #d['posts'][post.id] = post.__json__()
         d['post_count'] = self.post_count
 
         return d
@@ -320,7 +317,6 @@ class DeleteList:
                     self.posts[post.author.id] = {post.id: post}
 
     def merge(self, src):
-        """Handler for merging two postlists"""
         for author in src.posts.keys():
             if author in self.posts.keys():
                 for pid, post in src.posts[author].items():
@@ -340,10 +336,8 @@ class DeleteList:
     def __json__(self):
         d = {}
         d['deletelist'] = []
-        #d['posts'] = {}
         for post in self.deletelist:
             d['deletelist'].append(post.__json__())
-            #d['posts'][post.id] = post.__json__()
 
         return d
 
@@ -441,8 +435,6 @@ class Thread:
         self.postlist.merge(src_posts)
         self.users.merge(src_users)
         self.refresh_count()
-        #self.post_count += src.post_count
-        #self.get_post_count()
 
     def get_post_count(self):
         self.post_count = 0
@@ -506,10 +498,8 @@ class Category:
         d = {}
         d['name'] = self.name
         d['threadlist'] = []
-        #d['threads'] = {}
         for thread in self.threadlist:
             d['threadlist'].append(thread.__json__())
-           # d['threads'][thread.url] = thread.__json__()
         d['oldest'] = self.oldest.__json__()
 
         return d
@@ -540,6 +530,7 @@ class StatTracker:
         self.max_time = {}
         self.no_content = {}
         self.under_five = {}
+        self.deleted_threads = {}
         self.total_posts = 0
         if src is not None and type(src) is dict:
             self.deletions = src['deletions']
@@ -589,7 +580,6 @@ class StatTracker:
                 post.seen_for_del = True
 
     def update_edit_time(self, src):
-        #count, daytotal, hourtotal, minutetotal = 0, 0, 0, 0
         count, total = 0, 0
         min_ = None
         max_ = None
@@ -598,16 +588,8 @@ class StatTracker:
             for url, thread in category.threads.items():
                 for post in thread.postlist.postlist:
                     if post.edit_time is not None and post.id not in self.edit_times.keys() and post.edit_status != 'Unedited':
-                        #days, hours, minutes = post.edit_time.days * 86400, post.edit_time.seconds // 3600, post.edit_time.seconds // 60 % 60
-                        #daytotal += days
-                        #hourtotal += hours
-                        #print(f'got post {post.url} w times {post.poststamp}, {post.editstamp}, {post.edit_time}, {post.edit_status}')
                         total += post.edit_time.seconds
                         count += 1
-                        # if min_ is None or post.edit_time < min_.edit_time:
-                        #     min_ = post
-                        # if max_ is None or post.edit_time > max_.edit_time:
-                        #     max_ = post
                         seen.append((post.edit_time, post))
                         if category.name in self.edit_times.keys():
                             self.edit_times[category.name][post.id] = post.edit_time
@@ -673,6 +655,7 @@ class StatTracker:
             d['edit_times'][category] = {}
             for pid, edit_time in post.items():
                 d['edit_times'][category][pid] = str(edit_time)
+
         return d
 
     def load(self, src):
@@ -759,28 +742,16 @@ class SiteDB:
         from zipfile import ZipFile
         from datetime import timedelta
         filenames = [ f.path for f in os.scandir(os.getcwd() + '/cache/logs') if f.is_dir() ]
-        
-        try:
-            filenames.remove('debug.log')
-        except:
-            pass
-        try:
-            filenames.remove('.DS_Store')
-        except:
-            pass
-        try:
-            filenames.remove('geckodriver.log')
-        except:
-            pass
 
         now = datetime.now().strftime("%Y-%m-%d")
-        now = datetime.strptime(now, "%Y-%m-%d")
         if len(filenames) > 0:
-            if os.getcwd() + f'/cache/logs/{now}/*.zip' in filenames:
+            if os.getcwd() + f'/cache/logs/{now}' in filenames:
                 list_of_files = glob.glob(os.getcwd() + f'/cache/logs/{now}/*.zip') # * means all if need specific format then *.csv
+                curr = None
             else:
                 i = 1
                 while True:
+                    #now = datetime.strptime(now, "%Y-%m-%d")
                     curr = (now - timedelta(days=i)).strftime("%Y-%m-%d")
                     list_of_files = glob.glob(os.getcwd() + f'/cache/logs/{curr}/*.zip')
                     if len(list_of_files) > 0:
@@ -788,13 +759,22 @@ class SiteDB:
                     else:    
                         i += 1
 
-                if len(list_of_files) != 0:
-                    latest_file = max(list_of_files, key=os.path.getctime)
-                    v = str(int(latest_file.split('v')[1].split('.zip')[0]))
-                    if file is None:
-                        print(f'Loading from {latest_file}...')
-                        now = now.strftime("%Y-%m-%d")
+            if len(list_of_files) != 0:
+                latest_file = max(list_of_files, key=os.path.getctime)
+                v = str(int(latest_file.split('v')[1].split('.zip')[0]))
+                if file is None:
+                    print(f'Loading from {latest_file}...')
+                    if curr is not None:
                         with ZipFile(os.getcwd() + f'/cache/logs/{curr}/{os.path.basename(latest_file)}', 'r') as z:
+                            print(z.namelist())
+                            with z.open(f'v{v}.json', 'r') as f:
+                                data = json.load(f)
+                                self.dict_load(data)
+                            with z.open(f"stats_v{v}.json", 'r') as f:
+                                data = json.load(f)
+                                self.stats.load(data)
+                    else:
+                        with ZipFile(os.getcwd() + f'/cache/logs/{now}/{os.path.basename(latest_file)}', 'r') as z:
                             print(z.namelist())
                             with z.open(f'v{v}.json', 'r') as f:
                                 data = json.load(f)
@@ -805,7 +785,6 @@ class SiteDB:
             
     def load_from_raw_json(self, d):
         with open(os.getcwd() + d, 'r') as f:
-            #print(os.getcwd() + d)
             data = json.load(f)
             self.dict_load(data)
                     
@@ -844,10 +823,8 @@ class SiteDB:
         for category in d['categories']:
             c = Category([], '')
             c.load(category)
-            #print(f'Created category {c.__str__()}')
             self.categories.append(c)
             self.cache[c.name] = c
-            #self.categories.append(c)
         self.stats.load(d['stats'])
         try:
             self.last_scan = d['last_scan']
@@ -905,7 +882,6 @@ class SiteDB:
         return li
 
     def write(self):
-        #self.deletes = DeleteList(self.compare_pred())
         from zipfile import ZipFile
         now = datetime.now().strftime("%Y-%m-%d")
         if not os.path.isdir(os.getcwd() + f'/cache/logs/{now}'):
@@ -913,7 +889,6 @@ class SiteDB:
         try:
             with ZipFile(os.getcwd() + '/cache/logs/{}/v1.zip'.format(now), 'x') as z:
                 with z.open('v1.json', 'w') as f:
-                    #data = dict(self.cache)
                     d = self.compile()
                     f.write(json.dumps(d, indent=4).encode('utf-8'))
                 with z.open(f'stats_v1.json', 'w') as f:
@@ -922,15 +897,12 @@ class SiteDB:
                 import glob
                 list_of_files = glob.glob(os.getcwd() + f'/cache/logs/{now}/*.zip') # * means all if need specific format then *.csv
                 latest_file = max(list_of_files, key=os.path.getctime)
-                #v = str(int(latest_file.split('/logs/')[1].split('_v')[1].split('.zip')[0]) + 1)
                 with ZipFile(os.getcwd() + '/cache/logs/{}/v{}.zip'.format(now, str(int(latest_file.split('v')[1].split('.zip')[0]) + 1)), 'x') as z:
                         with z.open('v{}.json'.format(str(int(latest_file.split('v')[1].split('.zip')[0]) + 1)), 'w') as f:
-                            #data = dict(self.cache)
                             d = self.compile()
                             f.write(json.dumps(d, indent=4).encode('utf-8'))
                         with z.open(f"stats_v{str(int(latest_file.split('v')[1].split('.zip')[0]) + 1)}.json", 'w') as f:
                             f.write(json.dumps(self.stats.__json__(), indent=4).encode('utf-8'))
-                #f.write()
             
         with open(os.getcwd() + f'/cache/csv/{datetime.now().strftime("%Y-%m-%d")}.csv', "w") as f:
             f = csv.writer(f)
@@ -941,12 +913,30 @@ class SiteDB:
             for category in self.categories:
                 for thread in category.threadlist:
                     for author, post in thread.posts.items():
-                        f.writerow([thread.title, post.postdate, post.editdate, post.edit_time, post.message, \
-                        post.edit_status, category.name, thread.url, post.page, post.index,\
-                        post.author.name, post.author.id, post.author.rank, post.author.joindate, \
-                        post.author.url, post.editor.name, post.editor.id, post.editor.joindate, post.editor.url, post.editor.rank])
+                        if post.message != '':
+                            f.writerow([thread.title, post.postdate, post.editdate, post.edit_time, post.message, \
+                            post.edit_status, category.name, thread.url, post.page, post.index,\
+                            post.author.name, post.author.id, post.author.rank, post.author.joindate, \
+                            post.author.url, post.editor.name, post.editor.id, post.editor.joindate, post.editor.url, post.editor.rank])
+                        else:
+                            if post.id in self.pred.cache[category.name].threads[post.url].postlist.posts.keys():
+                                old_post = self.pred.cache[category.name].threads[post.url].postlist.posts[post.id]
+                                for post in self.deletes[thread.url].deletelist:
+                                    f.writerow([thread.title, post.postdate, post.editdate, post.edit_time, old_post.message, \
+                                    '<--Deleted-->', category.name, thread.url, post.page, post.index,\
+                                    post.author.name, post.author.id, post.author.rank, post.author.joindate, \
+                                    post.author.url, post.editor.name, post.editor.id, post.editor.joindate, post.editor.url, post.editor.rank])
                     if thread.url in self.deletes.keys():
                         for post in self.deletes[thread.url].deletelist:
+                            f.writerow([thread.title, post.postdate, post.editdate, post.edit_time, post.message, \
+                            '<--Deleted-->', category.name, thread.url, post.page, post.index,\
+                            post.author.name, post.author.id, post.author.rank, post.author.joindate, \
+                            post.author.url, post.editor.name, post.editor.id, post.editor.joindate, post.editor.url, post.editor.rank])
+            if category.name in self.stats.deleted_threads.keys():
+                for url in self.stats.deleted_threads[category.name]:
+                    if url in self.pred[category.name].threads.keys():
+                        entry = self.pred[category.name].threads[url]
+                        for post in entry.postlist.postlist:
                             f.writerow([thread.title, post.postdate, post.editdate, post.edit_time, post.message, \
                             '<--Deleted-->', category.name, thread.url, post.page, post.index,\
                             post.author.name, post.author.id, post.author.rank, post.author.joindate, \
@@ -968,16 +958,14 @@ class SiteDB:
                     print(f'{self.stats.deletions[category]} posts no longer found in category {category}\n')
                 else:
                     print(f'No posts found deleted in category {category}\n')
-
         li = self.compare_pred()
         if len(li) > 0:
             print(f'{len(li)} Posts found deleted w/o DeleteList:\n')
-            #for post in li:
-                #print(f'Post {post.__str__()} no longer found\n')
         else:
             print('No deletions detected since last scan.')
         for category in self.stats.modifications.keys():
             print(f'{self.stats.modifications[category]} posts moderated in category {category}\n')
+        sum_ = 0
         for category in self.stats.avg_timestamp.keys():
             days = self.stats.avg_timestamp[category]['days']
             hours = self.stats.avg_timestamp[category]['hours']
@@ -993,3 +981,11 @@ class SiteDB:
                 for url, count in self.stats.no_content[category].items():
                     s += count
                 print(f'{s} posts found without content in category {category}')
+                sum_ += s
+            if category in self.stats.deleted_threads.keys():
+                for url in self.stats.deleted_threads[category]:
+                    if url in self.pred[category].threads.keys():
+                        print(f'Thread {url} no longer found and we have cached data for it')
+                    else:
+                        print(f'Thread {url} no longer found and we do not have cached data for it')
+        print(f'Total of {sum_} posts found without content')

@@ -1,13 +1,12 @@
-import sys, os, time, json, logging, traceback, inspect, uuid, hashlib, random
+import sys, os, time, json, hashlib, random
 from bs4 import BeautifulSoup
 from datetime import datetime
 from header import *
+import validators
 
 class ThreadScraper:
     def __init__(self, driver, sitedb: SiteDB, debug=False):
-        #Instantiate soup object and inherit logger.
         self.driver = driver
-        self.logger = logging.getLogger(__name__)
         self.page = 0
         self.db = sitedb
         self.debug = debug
@@ -25,10 +24,6 @@ class ThreadScraper:
             soup = BeautifulSoup(html.encode('utf-8').strip(), 'lxml')
             time.sleep(1)
 
-        #print(html)
-        if html is None:
-            print('HTML IS NONE')
-
         if soup is None:
             self.driver.get(url)
             soup = BeautifulSoup(self.driver.page_source, 'html.parser')
@@ -43,8 +38,6 @@ class ThreadScraper:
         else:
             oldest_index = 0
 
-        if soup is None:
-            print('Something went wrong when parsing html')
         try:
             title = soup.find('h1', class_='lia-message-subject-banner lia-component-forums-widget-message-subject-banner')\
                 .text.replace('\n\t', '').replace('\n', '').replace('\u00a0', '')
@@ -65,12 +58,13 @@ class ThreadScraper:
             end = start - 30
         else:
             end = 1
-        #msg_cache = {}
+
         now = datetime.now()
         debugli = []
         post_total = str(10 * pages)
         oldest_reached = False
         last = 0
+
         try:
             op = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-reply')
         except:
@@ -86,20 +80,19 @@ class ThreadScraper:
         for pagenum in range(start, end - 1, -1):
             if pagenum == 1:
                 self.driver.get(url)
-                soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+                soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'html.parser')
                 time.sleep(1)
                 if soup is None:
-                    self.driver.get(url)
-                    soup = BeautifulSoup(self.driver.page_source, 'lxml')
-                    time.sleep(1)
+                    soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
             else:
-                self.driver.get(self.generate_next(url, pagenum))
-                soup = BeautifulSoup(self.driver.page_source, 'html.parser')
-                time.sleep(1)
-                if soup is None:
+                if validators.url(self.generate_next(url, pagenum)):
                     self.driver.get(self.generate_next(url, pagenum))
-                    soup = BeautifulSoup(self.driver.page_source, 'lxml')
+                    soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'html.parser')
                     time.sleep(1)
+                    if soup is None:
+                        soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
+                else:
+                    input(self.generate_next(url, pagenum))
 
             try:
                 op = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-topic')
@@ -157,10 +150,9 @@ class ThreadScraper:
                 msgli.append(msg)
 
             queue = []
-            #print(len(msgli))
-            #assert(len(msgli) == 10)
             for msg in reversed(msgli):
-                
+                if msg is None:
+                    continue
                 edit_status = 'Unedited'
                 _url = 'https://community.upwork.com' + \
                     msg.find('a', class_='lia-link-navigation lia-page-link lia-user-name-link user_name', href=True)['href']
