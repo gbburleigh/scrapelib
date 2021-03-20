@@ -905,7 +905,7 @@ class SiteDB:
         return li
 
     def write(self):
-        self.deletes = DeleteList(self.compare_pred())
+        #self.deletes = DeleteList(self.compare_pred())
         from zipfile import ZipFile
         now = datetime.now().strftime("%Y-%m-%d")
         if not os.path.isdir(os.getcwd() + f'/cache/logs/{now}'):

@@ -20,8 +20,14 @@ class ThreadScraper:
         compiles relevant data/metadata in dict format. Detects edit status and moderation status."""
         try:
             soup = BeautifulSoup(html.encode('utf-8').strip(), 'html.parser')
+            time.sleep(1)
         except:
             soup = BeautifulSoup(html.encode('utf-8').strip(), 'lxml')
+            time.sleep(1)
+
+        #print(html)
+        if html is None:
+            print('HTML IS NONE')
 
         if soup is None:
             self.driver.get(url)
@@ -45,11 +51,9 @@ class ThreadScraper:
         except:
             title = url.split(categ + '/')[1].split('/td-p')[0].replace('-', ' ')
             
-        try:
-            post_date = soup.find('span', class_='DateTime lia-message-posted-on lia-component-common-widget-date')\
-                .find('span', class_='message_post_text').text
-        except:
-            pass
+        post_date = soup.find('span', class_='DateTime lia-message-posted-on lia-component-common-widget-date')\
+            .find('span', class_='message_post_text').text
+            
         try:
             edit_date = soup.find('span', class_='DateTime lia-message-edited-on lia-component-common-widget-date')\
                 .find('span', class_='message_post_text').text
@@ -83,15 +87,19 @@ class ThreadScraper:
             if pagenum == 1:
                 self.driver.get(url)
                 soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+                time.sleep(1)
                 if soup is None:
                     self.driver.get(url)
                     soup = BeautifulSoup(self.driver.page_source, 'lxml')
+                    time.sleep(1)
             else:
                 self.driver.get(self.generate_next(url, pagenum))
                 soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+                time.sleep(1)
                 if soup is None:
                     self.driver.get(self.generate_next(url, pagenum))
                     soup = BeautifulSoup(self.driver.page_source, 'lxml')
+                    time.sleep(1)
 
             try:
                 op = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-topic')
