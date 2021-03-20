@@ -55,8 +55,8 @@ class Crawler:
             
             #spinner = Spinner(f'Finishing category {category.name}')
             
-            with Bar(f'Finishing remaining threads in category {category.name}', max=len(threads)) as bar:
-                if len(threads) > 0:
+            if len(threads) > 0:
+                with Bar(f'Finishing remaining threads in category {category.name}', max=len(threads)) as bar:
                     for url in threads:
                         self.driver.get(url)
                         thread = self.scraper.make_soup(self.driver.page_source, url, category.name)
