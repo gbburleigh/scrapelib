@@ -49,12 +49,19 @@ class Crawler:
                 print(f'Created CATEGORY: {category.__str__()}')
                 #self.db.add(category)
                 threads = self.db.get_remaining(category)
+                li = []
+                for url, thread in self.db.pred[category.name].threads.items():
+                    if url not in category.threads.keys():
+                        threads.append(url)
+
                 if len(threads) > 0:
+                    print(f'Got {len(threads)} remaining threads in old, parsing now')
                     for url in threads:
                         self.driver.get(url)
                         #time.sleep(2)
                         thread = self.scraper.make_soup(self.driver.page_source, url, category.name)
                         category.add(thread)
+                        print(f'Generated {thread.__str__()}')
 
                 self.db.add(category)
 
@@ -81,24 +88,26 @@ class Crawler:
                 if url in self.skipped:
                     continue
                 self.driver.get(url)
+                thread = None
                 #self.current_url = url
                 #time.sleep(2)
-                try:
-                    thread = self.scraper.make_soup(self.driver.page_source, url, tar.split('/t5/')[1].split('/')[0])
-                except InvalidSessionIdException:
-                    try:
-                        self.driver.get(url)
-                        #time.sleep(2)
-                        thread = self.scraper.make_soup(self.driver.page_source, url, tar.split('/t5/')[1].split('/')[0])
-                    except Exception as e:
-                        print(e)
-                        
-                except Exception as e:
-                    print(e)
-                    thread = None
+                #try:
+                thread = self.scraper.make_soup(self.driver.page_source, url, tar.split('/t5/')[1].split('/')[0])
+                #except InvalidSessionIdException:
+                #    try:
+                #        self.driver.get(url)
+                #        #time.sleep(2)
+                #        thread = self.scraper.make_soup(self.driver.page_source, url, tar.split('/t5/')[1].split('/')[0])
+                #    except Exception as e:
+                #        print(e)
+                #        
+                #except Exception as e:
+                #    print(e)
+                #    thread = None
                 #print(f'Generated thread: {thread.__str__()}')
                 if thread is not None and thread.post_count != 0:
                     threadli.append(thread)
+                #print(len(threadli))
                 bar.next()
 
         return Category(threadli, tar.split('/t5/')[1].split('/')[0])

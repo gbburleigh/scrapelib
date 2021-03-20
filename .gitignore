@@ -4,3 +4,6 @@ scrapelib.code-workspace
 cache/
 geckodriver.log
 debug.log
+.json
+.zip
+.csv

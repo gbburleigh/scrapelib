@@ -24,6 +24,7 @@ class ThreadScraper:
             soup = BeautifulSoup(html.encode('utf-8').strip(), 'lxml')
         userlist = UserList([])
         postlist = PostList([])
+        checked_indices = []
         if len(self.db.pred.keys()) > 0:
             oldest_index = self.db.find_oldest_index(url, categ)
         else:
@@ -49,8 +50,8 @@ class ThreadScraper:
         pages = self.get_page_numbers(soup)
         start = pages
         #seen = []
-        if start > 25:
-            end = start - 25
+        if start > 100:
+            end = start - 100
         else:
             end = 1
         #msg_cache = {}
@@ -70,7 +71,6 @@ class ThreadScraper:
                     post_total = msg.find('span', class_='MessagesPositionInThread').text.split('of ')[1].replace('\n', '').replace(',', '')
                 except:
                     post_total = str(10 * pages)
-            
 
         for pagenum in range(start, end - 1, -1):
             if pagenum == 1:
@@ -97,8 +97,32 @@ class ThreadScraper:
             except:
                 solved = None
 
+            try:
+                resolved = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-topic lia-list-row-thread-solved')
+            except:
+                resolved = None
+            
+            try:
+                solution = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-reply lia-list-row-thread-solved lia-accepted-solution')
+            except:
+                solution = None
+
+            try:
+                no_content = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-reply lia-message-with-no-content')
+            except:
+                no_content = None
+
+            if no_content is not None:
+                if categ in self.db.stats.no_content.keys():
+                    if url in self.db.stats.no_content[categ].keys():
+                        self.db.stats.no_content[categ][url] += len(no_content)
+                    else:
+                        self.db.stats.no_content[categ][url] = len(no_content)
+                else:
+                    self.db.stats.no_content[categ] = {url: len(no_content)}
+
             expired = False
-            msgs = op + unread + solved
+            msgs = op + unread + solved + no_content + resolved + solution
             idx = 0
             if self.debug is True:
                 l = []
@@ -112,8 +136,10 @@ class ThreadScraper:
                 msgli.append(msg)
 
             queue = []
-
+            #print(len(msgli))
+            #assert(len(msgli) == 10)
             for msg in reversed(msgli):
+                
                 edit_status = 'Unedited'
                 _url = 'https://community.upwork.com' + \
                     msg.find('a', class_='lia-link-navigation lia-page-link lia-user-name-link user_name', href=True)['href']
@@ -145,20 +171,20 @@ class ThreadScraper:
                     edited_url = ''
 
                 postdate = str(timestamp)
-                try:
-                    index = msg.find('span', class_='MessagesPositionInThread').find('a').text.replace('\n', '')
-                except:
-                    index = str((10 * pages) - idx)
+                #try:
+                index = msg.find('span', class_='MessagesPositionInThread').find('a').text.replace('\n', '')
+                #print(index)
+                checked_indices.append(index)
+                #except:
+                 #   index = str((10 * pages) - idx)
 
                 date_format = "%b %d, %Y %I:%M:%S %p"
                 dt = datetime.strptime(postdate, date_format)
                 now = datetime.now()
                 if (now-dt).days > 7:
-                    if int(index) == oldest_index:
+                    if int(index) < oldest_index:
                         expired = True
                         last = int(index)
-                            #print(f'post is more than a week old, and were past our open index {oldest_index} at index {index}')
-                        #print('post is a week old and we have no oldest index, continuing')
                 
                 body = msg.find('div', class_='lia-message-body-content').find_all(['p', 'ul'])
                 post = ''
@@ -171,7 +197,7 @@ class ThreadScraper:
                             post += item.text
                     else:
                         post += ('' + p.text + '').replace('\u00a0', '').replace('\n', '')
-                
+
                 #if name not in self.users.keys():
                 u = User(name, member_since, _url, rank)
                 userlist.handle_user(u)
@@ -180,25 +206,29 @@ class ThreadScraper:
                     #self.driver.get(edited_url)
                 else:
                     user_id = ''
-                if post != '':
-                    p = Post(postdate, editdate, post, u, url, pagenum, index, url.split('/t5/')[1].split('/')[0])
-                    #print(f'Generated post: {p.__str__()}')
-                    in_queue = False
-                    if user_id != '':
-                        queue.append((p, edited_url, edited_by))
-                        in_queue = True
-                    #     p.add_edited(u)
-                    # else:
-                    #     p.add_edited(User('', '', '', ''))
-                    if not in_queue:
-                        postlist.add(p)
+                p = Post(postdate, editdate, post, u, url, pagenum, index, url.split('/t5/')[1].split('/')[0])
+                #print(f'Generated post: {p.__str__()}')
+                debugli.append(p.__str__())
+                in_queue = False
+                if user_id != '':
+                    queue.append((p, edited_url, edited_by))
+                    in_queue = True
+                #     p.add_edited(u)
+                # else:
+                #     p.add_edited(User('', '', '', ''))
+                if not in_queue:
+                    postlist.add(p)
                 idx += 1
                 last = index
-                if expired is True:
-                    break
+                # if expired is True:
+                #     break
             if expired is True:
+                #print(f'\nwe expired on page {pagenum} out of {pages}\n')
                 break
-
+        
+        #if expired is False:
+            #print(f'\n Parsed {pages} pages')
+        
         if len(queue) > 0:
             for item in queue:
                 self.driver.get(item[1])
@@ -215,6 +245,17 @@ class ThreadScraper:
                 u = User(item[2], joindate, item[1], rank)
                 userlist.handle_user(u)
                 p.add_edited(u)
+
+        postqueue = []
+        if url.split('/t5/')[1].split('/')[0] in self.db.pred.keys():
+            if url in self.db.pred[url.split('/t5/')[1].split('/')[0]].threads.keys():
+                for post in self.db.pred[url.split('/t5/')[1].split('/')[0]].threads[url].postlist.postlist:
+                    #assert(post.index in checked_indices)
+                    if str(post.index) not in checked_indices:
+                        print(f'Missing {post.index} in checked indices')
+                        #print(checked_indices)
+                        #if post.__str__() not in debugli:
+                            #print(f'Missing post {post.__str__()}')
                 
         #print(f'Finished on {last}, oldest index was {oldest_index}')
         return Thread(postlist, url, author, url.split('/t5/')[1].split('/')[0], \

@@ -2,22 +2,43 @@ import hashlib, json, os, sys, csv, random
 from datetime import datetime
 
 class User:
+    """
+    Main wrapper object for user info. Encapsulates ID generation via available info
+
+    <---Args-->
+    name (str): Given username
+    joindate(str): User joindate (Note: this is a str type, not datetime)
+    url(str): URL to user profile
+    rank(str): User's community rank
+
+    <--Attributes-->
+    id(str): MD5 hash of name and url sliced to 16 characters
+    """
     def __init__(self, name, joindate, url, rank):
         self.name = name
         self.joindate = joindate
         self.url = url
         self.rank = rank
-        payload = str(self.name) + str(self.url)
-        payload = payload.encode('utf-8')
+        payload = (str(self.name) + str(self.url)).encode('utf-8')
         self.id = str(hashlib.md5(payload).hexdigest()[:16])
 
     def __str__(self):
+        """Generic string descriptor for object"""
         return f'User(name={self.name}, id={self.id})'
 
     def __json__(self):
+        """
+        Saves user info as a dictionary. This is called recursively by higher level objects.
+        """
         return {'name': self.name, 'joindate': self.joindate, 'url': self.url, 'id': self.id, 'rank': self.rank}
 
     def load(self, d):
+        """
+        Loads user data into blank user object from dictionary
+        
+        <---Args-->
+        d(dict): dictionary to load from
+        """
         self.name = d['name']
         self.joindate = d['joindate']
         self.url = d['url']
@@ -25,6 +46,14 @@ class User:
         self.rank = d['rank']
 
 class UserList:
+    """
+    Wrapper for holding lists of users associated with a thread. Saves user objects
+    as both a list of objects and a dictionary associating them via id. Note that only
+    user list is saved upon caching, and dictionary is generated at load time.
+
+    <---Args-->
+    users(list(User)): List of user objects to instantiate UserList from
+    """
     def __init__(self, users: [User]):
         self.userlist = users
         self.users = {}
@@ -33,6 +62,13 @@ class UserList:
                 self.users[u.id] = u
 
     def handle_user(self, user: User):
+        """
+        Handler for adding additional user objects to list. This is used to
+        avoid duplicate user objects from being added and can be used in deletion checks later
+        
+        <---Args-->
+        user(User): user object to add to list
+        """
         if user.id not in self.users.keys():
             self.users[user.id] = user
         elif user.id in self.users.keys():
@@ -42,25 +78,44 @@ class UserList:
                 self.users[user.id].rank = user.rank
 
     def check_user(self, user: User):
+        """
+        Convenience method for checking if user is available in conditionals
+
+        <---Args-->
+        user(User): user object to check
+        """
         if user.id in self.users.keys():
             return True
         else:
             return False
 
     def merge(self, src):
+        """
+        Method for merging userlist with another
+
+        <---Args-->
+        src(UserList): UserList to be absorbed
+        """
         for user in src.userlist:
             self.handle_user(user)
 
     def __json__(self):
+        """
+        Serializes UserList to dictionary for loading into JSON object.
+        """
         d = {}
         d['userlist'] = []
-        #d['users'] = {}
         for user in self.userlist:
             d['userlist'].append(user.__json__())
-            #d['users'][user.id] = user.__json__()
         return d
 
     def load(self, d):
+        """
+        Loads UserList object from dictionary.
+        
+        <---Args-->
+        d(dict): dictionary to load from
+        """
         for user in d['userlist']:
             u = User('', '', '', '')
             u.load(user)
@@ -70,35 +125,34 @@ class UserList:
             self.users[u.id] = u
 
 class Post:
-    """Generic post object. Generates unique ID based on author str and postdate. In the case
+    """
+    Generic post object. Generates unique ID based on author str and postdate. In the case
     that a post is deleted, its id should therefor not even appear in the postlist. Wrapper for
-    csv and json functionality later"""
-    def __init__(self, postdate, editdate, message, user : User, url, page, index, category, editor_id=''):
+    csv and json functionality later
+
+    <---Args-->
+    postdate(str): Date post was originally made, parsed into datetime later
+    editdate(str): Date post was edited, if available, parsed into datetime later
+    message(str): Message text
+    user(User): User object associated with post
+    url(str): Thread URL post was made on
+    page(str): Page of thread post was found on
+    index(str): Index in thread post is on
+    category(str): Category thread belongs to
+
+    <--Attributes-->
+    editor(User): User that edited this post, if available
+    seen_for_mod, seen_for_del (bool): Backend params used for stat tracking
+    edit_status(str): Either 'Unedited' or some variation of '**Edited'
+    """
+
+    def __init__(self, postdate, editdate, message, user : User, url, page, index, category):
         self.postdate = postdate
         self.editdate = editdate
-        # try:
-        #     self.postdate = self.postdate.split(' AM')[0]
-        # except:
-        #     pass
-        # try:
-        #     self.postdate = self.postdate.split(' PM')[0]
-        # except:
-        #     pass
-
         date_format = "%b %d, %Y %H:%M:%S"
         if self.postdate != '':
-            #dt = datetime.strptime(self.postdate, "%b %d, %Y %H:%M:%S")
             self.poststamp = datetime.strptime(self.postdate, "%b %d, %Y %I:%M:%S %p")
         if self.editdate != '':
-            # try:
-            #     self.editdate = self.editdate.split(' AM')[0]
-            # except:
-            #     pass
-            # try:
-            #     self.editdate = self.editdate.split(' PM')[0]
-            # except:
-                #   pass
-            #dt2 = 
             self.editstamp = datetime.strptime(self.editdate, "%b %d, %Y %I:%M:%S %p")
             self.edit_time = self.editstamp - self.poststamp
             if self.edit_time.days < 0:
@@ -123,6 +177,12 @@ class Post:
             self.edit_status = '**Edited**'
 
     def add_edited(self, user: User):
+        """
+        Adds a User object as editor of this post
+
+        <---Args-->
+        user(User): user object 
+        """
         self.editor = user
 
     def str_to_td(self, s):
@@ -167,8 +227,6 @@ class Post:
         self.seen_for_mod = d['seen_for_mod']
         self.seen_for_del = d['seen_for_del']
         self.category = d['category']
-        #u = User('', '', '', '')
-        #u.load(d['editor_id'])
         try:
             self.editor = d['editor']
         except:
@@ -439,6 +497,9 @@ class Category:
     def add(self, thread: Thread):
         if thread.url in self.threads.keys():
             self.threads[thread.url].update(thread)
+        else:
+            self.threads[thread.url] = thread
+        self.threadlist.append(thread)
         self.find_oldest()
 
     def __json__(self):
@@ -477,6 +538,7 @@ class StatTracker:
         self.edit_times = {}
         self.min_time = {}
         self.max_time = {}
+        self.no_content = {}
         self.under_five = {}
         self.total_posts = 0
         if src is not None and type(src) is dict:
@@ -601,6 +663,7 @@ class StatTracker:
         d['under_five'] = {}
         d['min_time'] = {}
         d['max_time'] = {}
+        d['no_content'] = self.no_content
         d['total_posts'] = self.total_posts
         for category in self.max_time.keys():
             d['max_time'][category] = self.max_time[category].__json__()
@@ -620,6 +683,10 @@ class StatTracker:
         self.edit_times = src['edit_times']
         self.avg_edit_time = src['avg_edit_time']
         self.avg_timestamp = src['avg_timestamp']
+        try:
+            self.no_content = src['no_content']
+        except:
+            self.no_content = 0
         try:
             self.total_posts = src['total_posts']
         except:
@@ -690,6 +757,7 @@ class SiteDB:
     def load(self, debug=False, file=None):
         import zlib, tempfile, glob
         from zipfile import ZipFile
+        from datetime import timedelta
         filenames = [ f.path for f in os.scandir(os.getcwd() + '/cache/logs') if f.is_dir() ]
         
         try:
@@ -706,16 +774,17 @@ class SiteDB:
             pass
 
         now = datetime.now().strftime("%Y-%m-%d")
-        try:
+        now = datetime.strptime(now, "%Y-%m-%d")
+        if os.getcwd() + f'/cache/logs/{now}/*.zip' in filenames:
             list_of_files = glob.glob(os.getcwd() + f'/cache/logs/{now}/*.zip') # * means all if need specific format then *.csv
-        except:
-            i = 0
+        else:
+            i = 1
             while True:
-                curr = now - datetime.timedelta(days=i)
-                try:
-                    list_of_files = glob.glob(os.getcwd() + f'/cache/logs/{curr}/*.zip')
+                curr = (now - timedelta(days=i)).strftime("%Y-%m-%d")
+                list_of_files = glob.glob(os.getcwd() + f'/cache/logs/{curr}/*.zip')
+                if len(list_of_files) > 0:
                     break
-                except:
+                else:    
                     i += 1
 
         if len(filenames) != 0 and len(list_of_files) != 0:
@@ -725,8 +794,8 @@ class SiteDB:
             #newest_file = str(max([datetime.strptime(x.strip('.zip').split('_v')[0], '%Y-%m-%d') for x in filenames]).date()) + '.zip'
             if file is None:
                 print(f'Loading from {latest_file}...')
-                temp = tempfile.TemporaryDirectory()
-                with ZipFile(os.getcwd() + f'/cache/logs/{now}/{os.path.basename(latest_file)}', 'r') as z:
+                now = now.strftime("%Y-%m-%d")
+                with ZipFile(os.getcwd() + f'/cache/logs/{curr}/{os.path.basename(latest_file)}', 'r') as z:
                     print(z.namelist())
                     with z.open(f'v{v}.json', 'r') as f:
                         data = json.load(f)
@@ -740,6 +809,12 @@ class SiteDB:
                     #         self.stats.load(data)
                     # except:
                     #     print('No old data to load')
+            
+    def load_from_raw_json(self, d):
+        with open(os.getcwd() + d, 'r') as f:
+            #print(os.getcwd() + d)
+            data = json.load(f)
+            self.dict_load(data)
                     
 
     def to_json(self):
@@ -790,9 +865,9 @@ class SiteDB:
 
     def get_remaining(self, category: Category):
         li = []
-        if category.name in self.cache.keys() and category.name in self.pred.keys():
+        if category.name in self.pred.keys():
             for thread in self.pred[category.name].threadlist:
-                if thread.url not in self.cache[category.name].threads.keys():
+                if thread.url not in category.threads.keys():
                     li.append(thread.url)
 
         return li
@@ -827,6 +902,9 @@ class SiteDB:
                         for post in thread.postlist.postlist:
                             if post.id not in self.cache[category.name].threads[url].posts.keys():
                                 li.append(post)
+                            elif post.id in self.cache[category.name].threads[url].posts.keys() and \
+                                self.cache[category.name].threads[url].posts[post.id].message == '':
+                                li.append(post)
                     else:
                         for post in thread.postlist.postlist:
                             li.append(post)
@@ -834,6 +912,7 @@ class SiteDB:
         return li
 
     def write(self):
+        self.deletes = DeleteList(self.compare_pred())
         from zipfile import ZipFile
         now = datetime.now().strftime("%Y-%m-%d")
         if not os.path.isdir(os.getcwd() + f'/cache/logs/{now}'):
@@ -913,20 +992,11 @@ class SiteDB:
             secs = self.stats.avg_timestamp[category]['seconds']
             print(f'Average moderation time on a post in category {category} was {days} days, {hours} hours, {mins} minutes, {secs} seconds\n')
             print(f'Min edit time: {self.stats.min_time[category].edit_time} on {self.stats.min_time[category].__str__()}\n')
-            #print(f'Min timestamps: {self.stats.min_time[category].poststamp}, {self.stats.min_time[category].editstamp}')
             print(f'Max edit time: {self.stats.max_time[category].edit_time} on {self.stats.max_time[category].__str__()}\n')
-            #print(f'Max timestamps: {self.stats.max_time[category].poststamp}, {self.stats.max_time[category].editstamp}')
-            #print('Posts edited in under five minutes: ')
-            # for post in self.stats.under_five[category]:
-            #     print(f'Post {post.__str__()} edited in {post.edit_time}')
             if category in self.stats.under_five.keys():
                 print(f'{len(self.stats.under_five[category])} posts edited in under five minutes for {category}')
-                #for post in self.stats.under_five[category]:
-                    #print(f'Post {post.__str__()} edited in under five minutes')
-            # print(f'User statistics for category {category}:')
-            # if category in self.stats.user_deletions.keys():
-            #     for uid, count in self.stats.user_deletions[category].items():
-            #         print(f'User {uid} had {count} posts no longer found')
-            # if category in self.stats.user_modifications.keys():
-            #     for uid, count in self.stats.user_modifications[category].items():
-            #         print(f'User {uid} had {count} posts moderated')
+            if category in self.stats.no_content.keys():
+                s = 0
+                for url, count in self.stats.no_content[category].items():
+                    s += count
+                print(f'{s} posts found without content in category {category}')
