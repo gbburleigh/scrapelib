@@ -72,11 +72,17 @@ class ThreadScraper:
 
         for pagenum in range(start, end - 1, -1):
             if pagenum == 1:
-                pass
+                self.driver.get(url)
+                soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+                if soup is None:
+                    self.driver.get(url)
+                    soup = BeautifulSoup(self.driver.page_source, 'lxml')
             else:
                 self.driver.get(self.generate_next(url, pagenum))
-                #time.sleep(3)
                 soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+                if soup is None:
+                    self.driver.get(url)
+                    soup = BeautifulSoup(self.driver.page_source, 'lxml')
 
             try:
                 op = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-topic')

@@ -5,7 +5,7 @@ from selenium.common.exceptions import InvalidSessionIdException
 from header import *
 from datetime import datetime
 from progress.bar import Bar
-from progress.spinner import Spinner
+from progress.spinner import PieSpinner
 
 class Crawler:
     def __init__(self, driver, sitedb: SiteDB, debug=False, target='upwork', max_page_scroll=5):
@@ -28,66 +28,72 @@ class Crawler:
         and scrapes each URL sequentially. TODO: Add additional forums, processes"""
         
         #Iterate through given category pages
-        bar_count = len(self.targets) * 30 * self.max_page_scroll
-        for tar in self.targets:
-            if tar.split('/t5/')[1].split('/')[0] == 'Freelancers':
-                bar_count += 1
-            elif tar.split('/t5/')[1].split('/')[0] == 'Announcements':
-                bar_count += 2
-        with Bar(f'Crawling...', max = bar_count) as bar:
-            now = datetime.now()
-            self.db.set_start(now)
-            for target in self.targets:
-                #Fetch page 
+        # bar_count = len(self.targets) * 30 * self.max_page_scroll
+        # for tar in self.targets:
+        #     if tar.split('/t5/')[1].split('/')[0] == 'Freelancers':
+        #         bar_count += 1
+        #     elif tar.split('/t5/')[1].split('/')[0] == 'Announcements':
+        #         bar_count += 2
+        #with Bar(f'Crawling...', max = bar_count) as bar:
+        now = datetime.now()
+        self.db.set_start(now)
+        for target in self.targets:
+            #Fetch page 
 
-                self.driver.get(target)
+            self.driver.get(target)
 
-                start = datetime.now()
+            start = datetime.now()
 
-                category = self.parse_page(target, bar)
-                print(f'\nCreated CATEGORY: {category.__str__()}')
-                threads = self.db.get_remaining(category)
-                li = []
-                for url, thread in self.db.pred[category.name].threads.items():
-                    if url not in category.threads.keys():
-                        threads.append(url)
-                
-                spinner = Spinner('Scraping remaining threads in cache...')
-                if len(threads) > 0:
-                    for url in threads:
-                        self.driver.get(url)
-                        thread = self.scraper.make_soup(self.driver.page_source, url, category.name)
-                        category.add(thread)
-                        spinner.next()
+            category = self.parse_page(target)
+            print(f'\nCreated CATEGORY: {category.__str__()}')
+            threads = self.db.get_remaining(category)
+            li = []
+            for url, thread in self.db.pred[category.name].threads.items():
+                if url not in category.threads.keys():
+                    threads.append(url)
+            
+            spinner = PieSpinner(f'Finishing category {category.name}')
+            if len(threads) > 0:
+                for url in threads:
+                    self.driver.get(url)
+                    thread = self.scraper.make_soup(self.driver.page_source, url, category.name)
+                    category.add(thread)
+                    spinner.next()
 
-                self.db.add(category)
+            self.db.add(category)
 
         return self.db
 
-    def parse_page(self, tar, bar):
+    def parse_page(self, tar):
 
         self.driver.get(tar)
         
         threadli = []
-        for currentpage in range(1, self.max_page_scroll + 1):
+        bar_count = 30 * self.max_page_scroll
+        if tar.split('/t5/')[1].split('/')[0] == 'Freelancers':
+            bar_count += 1
+        elif tar.split('/t5/')[1].split('/')[0] == 'Announcements':
+            bar_count += 2
+        with Bar(f'Parsing category {tar.split('/t5/')[1].split('/')[0]}', max=bar_count) as bar:
+            for currentpage in range(1, self.max_page_scroll + 1):
 
-            self.scraper.update_page(currentpage)
-            if currentpage == 1:
-                pass
-            else:
-                self.driver.get(self.generate_next(tar, currentpage))
+                self.scraper.update_page(currentpage)
+                if currentpage == 1:
+                    pass
+                else:
+                    self.driver.get(self.generate_next(tar, currentpage))
 
-            urls = self.get_links("//a[@class='page-link lia-link-navigation lia-custom-event']")
+                urls = self.get_links("//a[@class='page-link lia-link-navigation lia-custom-event']")
 
-            for url in urls:
-                if url in self.skipped:
-                    continue
-                self.driver.get(url)
-                thread = None
-                thread = self.scraper.make_soup(self.driver.page_source, url, tar.split('/t5/')[1].split('/')[0])
-                if thread is not None and thread.post_count != 0:
-                    threadli.append(thread)
-                bar.next()
+                for url in urls:
+                    if url in self.skipped:
+                        continue
+                    self.driver.get(url)
+                    thread = None
+                    thread = self.scraper.make_soup(self.driver.page_source, url, tar.split('/t5/')[1].split('/')[0])
+                    if thread is not None and thread.post_count != 0:
+                        threadli.append(thread)
+                    bar.next()
 
         return Category(threadli, tar.split('/t5/')[1].split('/')[0])
 
