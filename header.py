@@ -775,40 +775,33 @@ class SiteDB:
 
         now = datetime.now().strftime("%Y-%m-%d")
         now = datetime.strptime(now, "%Y-%m-%d")
-        if os.getcwd() + f'/cache/logs/{now}/*.zip' in filenames:
-            list_of_files = glob.glob(os.getcwd() + f'/cache/logs/{now}/*.zip') # * means all if need specific format then *.csv
-        else:
-            i = 1
-            while True:
-                curr = (now - timedelta(days=i)).strftime("%Y-%m-%d")
-                list_of_files = glob.glob(os.getcwd() + f'/cache/logs/{curr}/*.zip')
-                if len(list_of_files) > 0:
-                    break
-                else:    
-                    i += 1
+        if len(filenames) > 0:
+            if os.getcwd() + f'/cache/logs/{now}/*.zip' in filenames:
+                list_of_files = glob.glob(os.getcwd() + f'/cache/logs/{now}/*.zip') # * means all if need specific format then *.csv
+            else:
+                i = 1
+                while True:
+                    curr = (now - timedelta(days=i)).strftime("%Y-%m-%d")
+                    list_of_files = glob.glob(os.getcwd() + f'/cache/logs/{curr}/*.zip')
+                    if len(list_of_files) > 0:
+                        break
+                    else:    
+                        i += 1
 
-        if len(filenames) != 0 and len(list_of_files) != 0:
-            #files = [os.path.basename(x) for x in list_of_files]
-            latest_file = max(list_of_files, key=os.path.getctime)
-            v = str(int(latest_file.split('v')[1].split('.zip')[0]))
-            #newest_file = str(max([datetime.strptime(x.strip('.zip').split('_v')[0], '%Y-%m-%d') for x in filenames]).date()) + '.zip'
-            if file is None:
-                print(f'Loading from {latest_file}...')
-                now = now.strftime("%Y-%m-%d")
-                with ZipFile(os.getcwd() + f'/cache/logs/{curr}/{os.path.basename(latest_file)}', 'r') as z:
-                    print(z.namelist())
-                    with z.open(f'v{v}.json', 'r') as f:
-                        data = json.load(f)
-                        self.dict_load(data)
-                    with z.open(f"stats_v{v}.json", 'r') as f:
-                        data = json.load(f)
-                        self.stats.load(data)
-                    # try:
-                    #     with z.open(f"stats_{latest_file.split('/logs/')[1].split('_v')[0].split('.zip')[0]}_{str(int(v)-1)}.json", 'r') as f:
-                    #         data = json.load(f)
-                    #         self.stats.load(data)
-                    # except:
-                    #     print('No old data to load')
+                if len(list_of_files) != 0:
+                    latest_file = max(list_of_files, key=os.path.getctime)
+                    v = str(int(latest_file.split('v')[1].split('.zip')[0]))
+                    if file is None:
+                        print(f'Loading from {latest_file}...')
+                        now = now.strftime("%Y-%m-%d")
+                        with ZipFile(os.getcwd() + f'/cache/logs/{curr}/{os.path.basename(latest_file)}', 'r') as z:
+                            print(z.namelist())
+                            with z.open(f'v{v}.json', 'r') as f:
+                                data = json.load(f)
+                                self.dict_load(data)
+                            with z.open(f"stats_v{v}.json", 'r') as f:
+                                data = json.load(f)
+                                self.stats.load(data)
             
     def load_from_raw_json(self, d):
         with open(os.getcwd() + d, 'r') as f:
