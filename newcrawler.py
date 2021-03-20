@@ -74,7 +74,7 @@ class Crawler:
             bar_count += 1
         elif tar.split('/t5/')[1].split('/')[0] == 'Announcements':
             bar_count += 2
-        with Bar(f'Parsing category {tar.split('/t5/')[1].split('/')[0]}', max=bar_count) as bar:
+        with Bar(f"Parsing category {tar.split('/t5/')[1].split('/')[0]}", max=bar_count) as bar:
             for currentpage in range(1, self.max_page_scroll + 1):
 
                 self.scraper.update_page(currentpage)
