@@ -46,12 +46,10 @@ class ThreadScraper:
                 .find('span', class_='message_post_text').text
         except AttributeError:
             edit_date = 'Unedited'
-        #contributors = {}
         pages = self.get_page_numbers(soup)
         start = pages
-        #seen = []
-        if start > 100:
-            end = start - 100
+        if start > 30:
+            end = start - 30
         else:
             end = 1
         #msg_cache = {}
@@ -171,12 +169,8 @@ class ThreadScraper:
                     edited_url = ''
 
                 postdate = str(timestamp)
-                #try:
                 index = msg.find('span', class_='MessagesPositionInThread').find('a').text.replace('\n', '')
-                #print(index)
                 checked_indices.append(index)
-                #except:
-                 #   index = str((10 * pages) - idx)
 
                 date_format = "%b %d, %Y %I:%M:%S %p"
                 dt = datetime.strptime(postdate, date_format)
@@ -198,36 +192,24 @@ class ThreadScraper:
                     else:
                         post += ('' + p.text + '').replace('\u00a0', '').replace('\n', '')
 
-                #if name not in self.users.keys():
                 u = User(name, member_since, _url, rank)
                 userlist.handle_user(u)
                 if edited_url != '' and edited_by != '':
                     user_id = hashlib.md5((edited_by + edited_url).encode('utf-8')).hexdigest()[:16]
-                    #self.driver.get(edited_url)
                 else:
                     user_id = ''
                 p = Post(postdate, editdate, post, u, url, pagenum, index, url.split('/t5/')[1].split('/')[0])
-                #print(f'Generated post: {p.__str__()}')
                 debugli.append(p.__str__())
                 in_queue = False
                 if user_id != '':
                     queue.append((p, edited_url, edited_by))
                     in_queue = True
-                #     p.add_edited(u)
-                # else:
-                #     p.add_edited(User('', '', '', ''))
                 if not in_queue:
                     postlist.add(p)
                 idx += 1
                 last = index
-                # if expired is True:
-                #     break
             if expired is True:
-                #print(f'\nwe expired on page {pagenum} out of {pages}\n')
                 break
-        
-        #if expired is False:
-            #print(f'\n Parsed {pages} pages')
         
         if len(queue) > 0:
             for item in queue:
@@ -250,14 +232,9 @@ class ThreadScraper:
         if url.split('/t5/')[1].split('/')[0] in self.db.pred.keys():
             if url in self.db.pred[url.split('/t5/')[1].split('/')[0]].threads.keys():
                 for post in self.db.pred[url.split('/t5/')[1].split('/')[0]].threads[url].postlist.postlist:
-                    #assert(post.index in checked_indices)
                     if str(post.index) not in checked_indices:
                         print(f'Missing {post.index} in checked indices')
-                        #print(checked_indices)
-                        #if post.__str__() not in debugli:
-                            #print(f'Missing post {post.__str__()}')
                 
-        #print(f'Finished on {last}, oldest index was {oldest_index}')
         return Thread(postlist, url, author, url.split('/t5/')[1].split('/')[0], \
             self.page, post_date, title, edit_date, userlist, post_total)
 
