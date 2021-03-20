@@ -22,6 +22,13 @@ class ThreadScraper:
             soup = BeautifulSoup(html.encode('utf-8').strip(), 'html.parser')
         except:
             soup = BeautifulSoup(html.encode('utf-8').strip(), 'lxml')
+
+        if soup is None:
+            self.driver.get(url)
+            soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+            if soup is None:
+                self.driver.get(url)
+                soup = BeautifulSoup(self.driver.page_source, 'lxml')
         userlist = UserList([])
         postlist = PostList([])
         checked_indices = []
@@ -30,6 +37,8 @@ class ThreadScraper:
         else:
             oldest_index = 0
 
+        if soup is None:
+            print('Something went wrong when parsing html')
         try:
             title = soup.find('h1', class_='lia-message-subject-banner lia-component-forums-widget-message-subject-banner')\
                 .text.replace('\n\t', '').replace('\n', '').replace('\u00a0', '')
@@ -40,7 +49,7 @@ class ThreadScraper:
             post_date = soup.find('span', class_='DateTime lia-message-posted-on lia-component-common-widget-date')\
                 .find('span', class_='message_post_text').text
         except:
-            self.logger.warning(traceback.format_exc())
+            pass
         try:
             edit_date = soup.find('span', class_='DateTime lia-message-edited-on lia-component-common-widget-date')\
                 .find('span', class_='message_post_text').text
@@ -81,7 +90,7 @@ class ThreadScraper:
                 self.driver.get(self.generate_next(url, pagenum))
                 soup = BeautifulSoup(self.driver.page_source, 'html.parser')
                 if soup is None:
-                    self.driver.get(url)
+                    self.driver.get(self.generate_next(url, pagenum))
                     soup = BeautifulSoup(self.driver.page_source, 'lxml')
 
             try:

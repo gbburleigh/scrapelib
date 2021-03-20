@@ -5,7 +5,7 @@ from selenium.common.exceptions import InvalidSessionIdException
 from header import *
 from datetime import datetime
 from progress.bar import Bar
-from progress.spinner import PieSpinner
+from progress.spinner import Spinner
 
 class Crawler:
     def __init__(self, driver, sitedb: SiteDB, debug=False, target='upwork', max_page_scroll=5):
@@ -48,17 +48,20 @@ class Crawler:
             print(f'\nCreated CATEGORY: {category.__str__()}')
             threads = self.db.get_remaining(category)
             li = []
-            for url, thread in self.db.pred[category.name].threads.items():
-                if url not in category.threads.keys():
-                    threads.append(url)
+            if category.name in self.db.pred.keys():
+                for url, thread in self.db.pred[category.name].threads.items():
+                    if url not in category.threads.keys():
+                        threads.append(url)
             
-            spinner = PieSpinner(f'Finishing category {category.name}')
-            if len(threads) > 0:
-                for url in threads:
-                    self.driver.get(url)
-                    thread = self.scraper.make_soup(self.driver.page_source, url, category.name)
-                    category.add(thread)
-                    spinner.next()
+            #spinner = Spinner(f'Finishing category {category.name}')
+            
+            with Bar(f'Finishing remaining threads in category {category.name}', max=len(threads)) as bar:
+                if len(threads) > 0:
+                    for url in threads:
+                        self.driver.get(url)
+                        thread = self.scraper.make_soup(self.driver.page_source, url, category.name)
+                        category.add(thread)
+                        bar.next()
 
             self.db.add(category)
 
@@ -79,7 +82,7 @@ class Crawler:
 
                 self.scraper.update_page(currentpage)
                 if currentpage == 1:
-                    pass
+                    self.driver.get(tar)
                 else:
                     self.driver.get(self.generate_next(tar, currentpage))
 
