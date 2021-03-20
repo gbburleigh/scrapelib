@@ -5,6 +5,7 @@ from selenium.common.exceptions import InvalidSessionIdException
 from header import *
 from datetime import datetime
 from progress.bar import Bar
+from progress.spinner import Spinner
 
 class Crawler:
     def __init__(self, driver, sitedb: SiteDB, debug=False, target='upwork', max_page_scroll=5):
@@ -41,27 +42,23 @@ class Crawler:
 
                 self.driver.get(target)
 
-                #Backend params
-                #time.sleep(2)
                 start = datetime.now()
 
                 category = self.parse_page(target, bar)
-                print(f'Created CATEGORY: {category.__str__()}')
-                #self.db.add(category)
+                print(f'\nCreated CATEGORY: {category.__str__()}')
                 threads = self.db.get_remaining(category)
                 li = []
                 for url, thread in self.db.pred[category.name].threads.items():
                     if url not in category.threads.keys():
                         threads.append(url)
-
+                
+                spinner = Spinner('Scraping remaining threads in cache...')
                 if len(threads) > 0:
-                    print(f'Got {len(threads)} remaining threads in old, parsing now')
                     for url in threads:
                         self.driver.get(url)
-                        #time.sleep(2)
                         thread = self.scraper.make_soup(self.driver.page_source, url, category.name)
                         category.add(thread)
-                        print(f'Generated {thread.__str__()}')
+                        spinner.next()
 
                 self.db.add(category)
 
@@ -70,7 +67,6 @@ class Crawler:
     def parse_page(self, tar, bar):
 
         self.driver.get(tar)
-        #time.sleep(2)
         
         threadli = []
         for currentpage in range(1, self.max_page_scroll + 1):
@@ -80,7 +76,6 @@ class Crawler:
                 pass
             else:
                 self.driver.get(self.generate_next(tar, currentpage))
-                #time.sleep(2)
 
             urls = self.get_links("//a[@class='page-link lia-link-navigation lia-custom-event']")
 
@@ -89,25 +84,9 @@ class Crawler:
                     continue
                 self.driver.get(url)
                 thread = None
-                #self.current_url = url
-                #time.sleep(2)
-                #try:
                 thread = self.scraper.make_soup(self.driver.page_source, url, tar.split('/t5/')[1].split('/')[0])
-                #except InvalidSessionIdException:
-                #    try:
-                #        self.driver.get(url)
-                #        #time.sleep(2)
-                #        thread = self.scraper.make_soup(self.driver.page_source, url, tar.split('/t5/')[1].split('/')[0])
-                #    except Exception as e:
-                #        print(e)
-                #        
-                #except Exception as e:
-                #    print(e)
-                #    thread = None
-                #print(f'Generated thread: {thread.__str__()}')
                 if thread is not None and thread.post_count != 0:
                     threadli.append(thread)
-                #print(len(threadli))
                 bar.next()
 
         return Category(threadli, tar.split('/t5/')[1].split('/')[0])
