@@ -49,7 +49,8 @@ class ThreadScraper:
         except AttributeError:
             edit_date = 'Unedited'
         
-        start = self.get_page_numbers(soup)
+        pages = self.get_page_numbers(soup)
+        start = pages
         if start > 30:
             end = start - 30
         else:
