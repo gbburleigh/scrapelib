@@ -570,8 +570,11 @@ class Thread:
         src_users = src.users
         src_posts = src.postlist
         self.postlist.merge(src_posts)
+        for post in src.posts:
+            self.posts[post.id] = post
         self.users.merge(src_users)
-        self.refresh_count()
+        self.get_post_count()
+
 
     def get_post_count(self):
         """

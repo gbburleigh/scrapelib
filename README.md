@@ -12,14 +12,44 @@ Bot is evoked in the following manner:
 <pre>python3 driver.py</pre>
 
 
-# Driver
+# Components
 
-The main driver file will be the primary way users interact with Scrapelib. Users can generate a Driver object that will handle the scheduling of tasks and delegating of operations for the different subclasses. Users will be able to specify fields such as refresh frequency, maximum post cache size, report formatting, among others. Subclasses can be instantiated for specific testing (see ThreadScraper description) and for customization past those within the Driver object. Driver will also support addition of new objects to observe different websites outside of the scope of this project.
+<h1>Driver</h1>
+This is the main interface for the Crawler and Scraper classes. Running driver.py will create a driver object that handles webdriver creation, process management, DB comparison, and loading/writing on the cached data. Running driver.py with any of the following arguments will change the configuration of the webdriver object.
 
-# Thread Scraper
+<ul>
+    <li>"-f" will open a FireFox webdriver through Webdriver Manager. Geckodriver binary will be downloaded and configured by this module and can be used when Chromedriver binary isn't available.
+    </li>
 
-This class is used to parse through cached HTML data for posted threads. Using BeautifulSoup, this class will be responsible for determining changes in existing threads, and finding important information on new threads such as OP, post date, etc. This class will be used by a Crawler object that uses a webdriver to find threads on the main forum page and sends them to the Scraper (tentative).
+    <li>
+    "-c" will open a Chromedriver instance in Selenium using the chromedriver_binary module. This is separate from WDM and can be used when config issues arise with this module.
+    </li>
+</ul>
 
-# Crawler
+<h1>Crawler</h1>
 
-This class is used to crawl over category pages and find threads to send to the Scraper object. This object inherits a variety of fields from the Driver parent class, such as loaded history, webdriver, and statistics. 
+<h1>Scraper</h1>
+
+# Included Classes
+
+<h2>User</h2>
+Main object used to represent all user data in backend.
+
+<h2>UserList</h2>
+Abstraction of simple Python list for managing groups of users.
+
+<h2>Post</h2>
+Object for storing necessary information about a post on a thread, including lower level user objects.
+
+<h2>PostList</h2>
+
+
+<h2>DeleteList</h2>
+
+<h2>Thread</h2>
+
+<h2>Category</h2>
+
+<h2>StatTracker</h2>
+
+<h2>SiteDB</h2>

@@ -25,7 +25,10 @@ class Crawler:
     """
     def __init__(self, driver, sitedb: SiteDB, debug=False, target='upwork', max_page_scroll=5):
         self.driver = driver
-        self.max_page_scroll = max_page_scroll
+        if '-full' not in sys.argv:
+            self.max_page_scroll = max_page_scroll
+        else:
+            self.max_page_scroll = 0
         self.db = sitedb
         self.skipped = ['https://community.upwork.com/t5/Announcements/Welcome-to-the-Upwork-Community/td-p/1',\
                         'https://community.upwork.com/t5/Announcements/Upwork-Community-Guidelines']
@@ -92,6 +95,8 @@ class Crawler:
         different stats such as deleted threads. Utilizes crawler.get_links to pull links on page
         """
         self.driver.get(tar)
+        if '-full' in sys.argv:
+            self.max_page_scroll = self.get_page_numbers()
         threadli = []
         bar_count = 30 * self.max_page_scroll
         if tar.split('/t5/')[1].split('/')[0] == 'Freelancers':

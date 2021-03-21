@@ -67,8 +67,11 @@ class ThreadScraper:
         
         pages = self.get_page_numbers(soup)
         start = pages
-        if start > 30:
-            end = start - 30
+        if '-full' not in sys.argv:
+            if start > 30:
+                end = start - 30
+            else:
+                end = 1
         else:
             end = 1
             
