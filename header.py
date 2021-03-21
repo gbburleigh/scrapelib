@@ -919,8 +919,8 @@ class SiteDB:
                             post.author.name, post.author.id, post.author.rank, post.author.joindate, \
                             post.author.url, post.editor.name, post.editor.id, post.editor.joindate, post.editor.url, post.editor.rank])
                         else:
-                            if post.id in self.pred.cache[category.name].threads[post.url].postlist.posts.keys():
-                                old_post = self.pred.cache[category.name].threads[post.url].postlist.posts[post.id]
+                            if post.id in self.pred[category.name].threads[post.url].postlist.posts.keys():
+                                old_post = self.pred[category.name].threads[post.url].postlist.posts[post.id]
                                 for post in self.deletes[thread.url].deletelist:
                                     f.writerow([thread.title, post.postdate, post.editdate, post.edit_time, old_post.message, \
                                     '<--Deleted-->', category.name, thread.url, post.page, post.index,\

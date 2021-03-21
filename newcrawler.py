@@ -9,7 +9,7 @@ from progress.bar import Bar
 from progress.spinner import Spinner
 
 class Crawler:
-    def __init__(self, driver, sitedb: SiteDB, debug=False, target='upwork', max_page_scroll=1):
+    def __init__(self, driver, sitedb: SiteDB, debug=False, target='upwork', max_page_scroll=5):
         #Inherit objects and instantiate scraper class
         self.driver = driver
         self.max_page_scroll = max_page_scroll
@@ -33,8 +33,8 @@ class Crawler:
         self.db.set_start(now)
         for target in self.targets:
             #Fetch page 
-            #if iter_ > 0:
-                #self.regenerate_driver()
+            if iter_ > 0:
+                self.regenerate_driver()
             self.driver.get(target)
 
             start = datetime.now()
@@ -79,16 +79,16 @@ class Crawler:
             bar_count += 1
         elif tar.split('/t5/')[1].split('/')[0] == 'Announcements':
             bar_count += 2
-        with Bar(f"Parsing category {tar.split('/t5/')[1].split('/')[0]}", max=bar_count) as bar:
-            for currentpage in range(1, self.max_page_scroll + 1):
-                if currentpage == 1:
-                    self.driver.get(tar)
-                else:
-                    self.driver.get(self.generate_next(tar, currentpage))
-                self.scraper.update_page(currentpage)
-                try:
+        try:
+            with Bar(f"Parsing {tar.split('/t5/')[1].split('/')[0]}", max=bar_count) as bar:
+                for currentpage in range(1, self.max_page_scroll + 1):
+                    if currentpage == 1:
+                        self.driver.get(tar)
+                    else:
+                        self.driver.get(self.generate_next(tar, currentpage))
+                    self.scraper.update_page(currentpage)
                     urls = self.get_links("//a[@class='page-link lia-link-navigation lia-custom-event']")
-                    print(f'Got {len(urls)} urls')
+                    #print(f'Got {len(urls)} urls')
                     for url in urls:
                         if url in self.skipped:
                             continue
@@ -107,8 +107,8 @@ class Crawler:
                         if thread is not None and thread.post_count != 0:
                             threadli.append(thread)
                         bar.next()
-                except Exception as e:
-                    print(e)
+        except Exception as e:
+            print(e)
 
         return Category(threadli, tar.split('/t5/')[1].split('/')[0])
 
