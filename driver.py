@@ -53,6 +53,7 @@ class Driver:
 
         """
         self.webdriver.quit()
+        os.system('pkill -f chrome')
         sys.exit()
  
 if __name__ == "__main__":
