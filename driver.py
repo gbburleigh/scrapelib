@@ -1,4 +1,4 @@
-import time, json, csv, sts, os
+import time, json, csv, sys, os
 from selenium import webdriver
 from crawler import Crawler
 from header import *

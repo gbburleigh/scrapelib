@@ -74,7 +74,7 @@ class ThreadScraper:
                     post_total = str(10 * pages)
 
         for pagenum in range(start, end - 1, -1):
-            if pagenum > 1 and validators.url(self.generate_next(url, pagenum))
+            if pagenum > 1 and validators.url(self.generate_next(url, pagenum)):
                     self.driver.get(self.generate_next(url, pagenum))
                     soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
 
