@@ -1,7 +1,7 @@
 from header import *
-from newscraper import *
-from newdriver import *
-from newcrawler import *
+from scraper import *
+from driver import *
+from crawler import *
 
 import schedule
 
