@@ -1,14 +1,6 @@
-import sys,os, signal
-
-#Configure packages FIXME
-if sys.prefix == sys.base_prefix:
-    import subprocess
-    #print('Configuring...')
-    os.system('. resources/activate.sh')
-
-import time, json, logging, schedule, atexit, csv
+import time, json, csv, sts, os
 from selenium import webdriver
-from newcrawler import Crawler
+from crawler import Crawler
 from header import *
 from datetime import datetime
 
@@ -39,16 +31,11 @@ class Driver:
             options.add_argument('--headless')
             options.add_argument('--disable-gpu')
             self.webdriver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
-
-
-        #Configure scheduling
-        schedule.every().day.at('00:00').do(self.run)
         
     def run(self):
-
-        """Main driver function. Inherits crawler class and functionality to scrape various threads.
-        Inherited fields are webdriver and logger object. This function will execute once every day.
-        Handles cache management and garbage collection."""
+        """
+        
+        """
         old_db = SiteDB([], 'upwork')
         old_db.load()
         self.db.pred = old_db.cache
@@ -62,44 +49,16 @@ class Driver:
         self.db.write()
    
     def close(self):
-        #Cleans up webdriver processes and exits program
+        """
+
+        """
         self.webdriver.quit()
         sys.exit()
-
-    def flush_cache(self):
-        dirs = ['/cache/logs/']
-        for dir_ in dirs:
-            _, _, filenames = next(os.walk(os.getcwd() + dir_))
-            if len(filenames) > 0:
-                for f in filenames:
-                    os.remove(os.getcwd() + dir_ + f)
-
-    def flush_csv(self):
-        _, _, filenames = next(os.walk(os.getcwd() + '/cache/csv'))
-        if len(filenames) > 0:
-            for f in filenames:
-                os.remove(os.getcwd() + f'/cache/csv/{f}')
-
-    def flush_stats(self):
-        _, _, filenames = next(os.walk(os.getcwd() + '/cache/sys/stats'))
-        if len(filenames) > 0:
-            for f in filenames:
-                os.remove(os.getcwd() + f'/cache/sys/stats/{f}')
-
-    def flush(self):
-        self.flush_cache()
-        self.flush_csv()
-        self.flush_stats()
-
  
 if __name__ == "__main__":
-    #Run test functions
     now = datetime.now()
-    d = Driver(start=now)
-    if '-flush' in sys.argv:
-        d.flush()
     try:
-        d.run()
+        d = Driver(start=now)
     except KeyboardInterrupt:
         d.close()
         os.system('deactivate')

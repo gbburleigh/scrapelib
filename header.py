@@ -53,6 +53,9 @@ class UserList:
 
     <---Args-->
     users(list(User)): List of user objects to instantiate UserList from
+
+    <--Attributes-->
+    users(dict): dictionary associating user ids and user objects in backend via userlist attribute
     """
     def __init__(self, users: [User]):
         self.userlist = users
@@ -186,14 +189,26 @@ class Post:
         self.editor = user
 
     def str_to_td(self, s):
+        """ 
+        Helper for converting a date string to a timedelta, used in determining edit time
+        
+        <--Args-->
+        s(str): string of date in format H:M:S
+        """
         t = datetime.strptime(s,"%H:%M:%S")
         delta = datetime.timedelta(hours=t.hour, minutes=t.minute, seconds=t.second)
         return delta
 
     def __str__(self):
+        """
+        Generic string descriptor for post
+        """
         return f'Post(name={self.author.__str__()}, id={self.id}, url={self.url}, page={self.page}, index={self.index})'
 
     def __json__(self):
+        """
+        Serialize object into dictionary for caching, called recursively
+        """
         d = {}
         d['postdate'] = self.postdate
         d['editdate'] = self.editdate
@@ -212,6 +227,12 @@ class Post:
         return d
 
     def load(self, d):
+        """
+        Helper for loading object from dictionary. Used at loadtime recursively.
+
+        <--Args-->
+        d(dict): dict containing object information to load
+        """
         self.postdate = d['postdate']
         self.editdate = d['editdate']
         self.message = d['message']
@@ -226,14 +247,22 @@ class Post:
         self.seen_for_mod = d['seen_for_mod']
         self.seen_for_del = d['seen_for_del']
         self.category = d['category']
-        #try:
-            #self.editor = d['editor']
-        #except:
         u = User('', '', '', '')
         u.load(d['editor'])
         self.editor = u
 
 class PostList:
+    """
+    Object to encapsulate holding posts in Thread object. Takes in a simple list of Post objects
+    and generates a dictionary relating them via post ids. Also has helpers to help with stats tracking
+
+    <--Args-->
+    posts(list(Post)): list of posts to instantiate object from
+
+    <--Attributes-->
+    posts(dict): dictionary for backend associating post ids and post objects
+    post_count(int): current number of posts stored in object
+    """
     def __init__(self, posts : [Post]):
         self.postlist = posts
         self.posts = {}
@@ -247,6 +276,9 @@ class PostList:
         self.get_post_count()
 
     def __json__(self):
+        """
+        Serialize object into dictionary for caching, called recursively
+        """
         d = {}
         d['postlist'] = []
         for post in self.postlist:
@@ -256,6 +288,12 @@ class PostList:
         return d
 
     def load(self, d):
+        """
+        Helper for loading object from dictionary. Used at loadtime recursively.
+
+        <--Args-->
+        d(dict): dict containing object information to load
+        """
         for item in d['postlist']:
             p = Post('', '', '', User('', '', '', ''), '', '', '0', '')
             p.load(item)
@@ -266,8 +304,13 @@ class PostList:
         self.post_count = d['post_count']
 
     def diff(self, other):
-        """Returns the list of posts in the other postlist that aren't present in the current list.
-        Thread object will use this method to determine which posts have been deleted"""
+        """
+        Returns the list of posts in the other postlist that aren't present in the current list.
+        Thread object will use this method to determine which posts have been deleted
+        
+        <--Args-->
+        other(PostList): postlist to compare with
+        """
         deleted = []
         for post in other.postlist:
             if post.author.id in self.posts.keys():
@@ -279,11 +322,20 @@ class PostList:
         return DeleteList(deleted)
 
     def get_post_count(self):
+        """
+        Convenience method to quickly access and update number of posts in list
+        """
         self.post_count = 0
         for post in self.postlist:
             self.post_count += 1
 
     def add(self, post: Post):
+        """
+        Adds a post to the object. Updates dictionary, list, and count.
+
+        <--Args-->
+        post(Post): post to add to list
+        """
         if post.author.id in self.posts.keys():
             self.posts[post.author.id][post.id] = post
         else:
@@ -292,7 +344,12 @@ class PostList:
         self.post_count += 1
 
     def merge(self, src):
-        """Handler for merging two postlists"""
+        """
+        Handler for merging two postlists. Called recursively in higher level objects
+
+        <--Args-->
+        src(PostList): postlist to absorb
+        """
         for author in src.posts.keys():
             if author in self.posts.keys():
                 for pid, post in src.posts[author].items():
@@ -306,6 +363,16 @@ class PostList:
                     self.post_count += 1
 
 class DeleteList:
+    """
+    Backend object to track deleted posts in a similar fashion to postlists. Note that
+    the use of this object will be defunct soon.
+
+    <--Args-->
+    posts(list(Post)): list of posts to instantiate object from
+
+    <--Attributes-->
+    posts(dict): dictionary associating post ids and post objects
+    """
     def __init__(self, posts : [Post]):
         self.posts = {}
         self.deletelist = posts
@@ -317,6 +384,12 @@ class DeleteList:
                     self.posts[post.author.id] = {post.id: post}
 
     def merge(self, src):
+        """
+        Handler for merging two deletelists. Called recursively in higher level objects
+
+        <--Args-->
+        src(DeleteList): deletelist to absorb
+        """
         for author in src.posts.keys():
             if author in self.posts.keys():
                 for pid, post in src.posts[author].items():
@@ -328,12 +401,21 @@ class DeleteList:
                     self.posts[author][pid] = post
 
     def add(self, post: Post):
+        """
+        Adds a post to the object. Updates dictionary, list, and count.
+
+        <--Args-->
+        post(Post): post to add to list
+        """
         if post.author.id in self.posts.keys():
             self.posts[post.author.id][post.id] = post
         else:
             self.posts[post.author.id] = {post.id: post}
 
     def __json__(self):
+        """
+        Serialize object into dictionary for caching, called recursively
+        """
         d = {}
         d['deletelist'] = []
         for post in self.deletelist:
@@ -342,6 +424,12 @@ class DeleteList:
         return d
 
     def load(self, d):
+        """
+        Helper for loading object from dictionary. Used at loadtime recursively.
+
+        <--Args-->
+        d(dict): dict containing object information to load
+        """
         for item in d['deletelist']:
             p = Post('', '', '', User('', '', '', ''), '', '', '0', '')
             p.load(item)
@@ -352,6 +440,28 @@ class DeleteList:
 
         
 class Thread:
+    """
+    Object for tracking and representing threads in backend schema. Encapsulates a variety of 
+    stat tracking features and makes use of lower level objects defined previously to represent all
+    necessary data associated with a URL.
+
+    <--Args-->
+    posts(list(Post)): list of post objects scraped from thread
+    url(str): thread URL
+    op(str): Username that posted this thread TODO: remove this
+    category(str): category name used to store thread in higher level cache
+    page(int): Page number of category this thread was found on
+    postdate(str): datetime-formatted str
+    title(str): thread title
+    editdate(str): datetime-formatted str, if available
+    users(UserList): list of users associated with this thread
+    total(int): total number of posts
+
+    <--Attributes-->
+    oldest_index(int): current oldest index stored in our list of posts. Used in backend to ensure
+    that later scans parse up to this point before finishing the thread
+    posts(dict): dictionary associating post ids and posts for backend
+    """
     def __init__(self, posts: PostList, url, op, category, page, postdate, title, editdate, users: UserList, total):
         self.url = url
         self.title = title
@@ -373,6 +483,9 @@ class Thread:
             self.oldest_index = 0
 
     def __json__(self):
+        """
+        Serialize object into dictionary for caching, called recursively
+        """
         d = {}
         d['url'] = self.url
         d['title'] = self.title
@@ -381,11 +494,9 @@ class Thread:
         d['op'] = self.op
         d['category'] = self.category
         d['postlist'] = []
-       # d['posts'] = {}
         u = UserList([])
         for post in self.postlist.postlist:
             d['postlist'].append(post.__json__())
-           # d['posts'][post.id] = post.__json__()
             u.handle_user(post.author)
         d['page'] = self.page
         d['total'] = self.total
@@ -396,6 +507,12 @@ class Thread:
         return d
 
     def load(self, d):
+        """
+        Helper for loading object from dictionary. Used at loadtime recursively.
+
+        <--Args-->
+        d(dict): dict containing object information to load
+        """
         self.url = d['url']
         self.title = d['title']
         self.editdate = d['editdate']
@@ -422,14 +539,31 @@ class Thread:
 
 
     def refresh_count(self):
+        """
+        Backend convenience method for getting most recent number of posts
+        """
         self.post_count = self.postlist.post_count
         return self.post_count
 
     def compare(self, src):
+        """
+        Compare two threads and generate a deletelist. This is used to compare thread objects generated
+        from the same source. Recursively calls postlist diff and post compare functions.
+
+        <--Args-->
+        src(Thread): thread object to compare to. this thread object should be an older version of the same
+        object
+        """
         deleted = self.postlist.diff(src.postlist)
         return deleted
 
     def update(self, src):
+        """
+        Update thread object with another. This is defunct TODO: remove dependencies on this function
+
+        <--Args-->
+        src(Thread): thread object to update from
+        """
         src_users = src.users
         src_posts = src.postlist
         self.postlist.merge(src_posts)
@@ -437,14 +571,25 @@ class Thread:
         self.refresh_count()
 
     def get_post_count(self):
+        """
+        Convenience method for accessing current post count
+        TODO: remove one of this, or refresh_count
+        """
         self.post_count = 0
         for post in self.postlist.postlist:
             self.post_count += 1
 
     def sorted(self):
+        """
+        Return a sorted list of posts by index on page, used for backend comparisons
+        """
         return sorted(self.postlist.postlist, key=lambda x: x.index, reverse=True)
 
     def reverse_iterator(self):
+        """
+        Generator for returning posts in a backwards fashion.
+        TODO: remove this
+        """
         index = self.total
         for post in self.postlist.postlist:
             if post.index == index:
@@ -452,14 +597,36 @@ class Thread:
                 yield post
 
     def get_next(self, idx):
+        """
+        Return next post in postlist from given index.
+
+        <--Args-->
+        idx(int): index from which next post should be given from
+        """
         for post in self.postlist.postlist:
             if post.index == idx:
                 return post
 
     def __str__(self):
+        """
+        Generic string descriptor for object
+        """
         return f'Thread(title={self.title[:24]}, category={self.category}, posts={self.post_count})'
 
 class Category:
+    """
+    Higher level structure for holding list of threads found in a given forum category. For example,
+    all threads found on the category 'Freelancers' on Upwork would be saved in an object of this type
+    with name 'Freelancers'. These objects are stored in DB cache and are main interface from which
+    threadlists are accessed
+
+    <--Args-->
+    threads(list(Thread)): list of thread objects scraped from this category
+    name(str): name of categry we scraped from
+
+    <--Attributes-->
+    oldest(Thread): oldest thread associated with category
+    """
     def __init__(self, threads: [Thread], name):
         self.name = name
         self.threads = {}
@@ -472,6 +639,9 @@ class Category:
             self.find_oldest()
 
     def find_oldest(self):
+        """
+        Backend method for determining oldest thread in threadlist from datetime str
+        """
         for url, thread in self.threads.items():
             dt = datetime.strptime(thread.postdate, "%b %d, %Y %I:%M:%S %p")
             if dt < datetime.strptime(self.oldest.postdate, "%b %d, %Y %I:%M:%S %p"):
@@ -479,6 +649,12 @@ class Category:
 
 
     def merge(self, src):
+        """
+        Merges two category objects together, with caller absorbing category given as arg.
+
+        <--Args-->
+        src(Category): category object to absorb
+        """
         for url, thread in src.threads.keys():
             if url in self.threads.keys():
                 self.threads[url].update(thread)
@@ -487,6 +663,13 @@ class Category:
         self.find_oldest()
     
     def add(self, thread: Thread):
+        """
+        Add thread to threadlist and update backend params. This is used for parsing leftover
+        threads from cache that we didn't find on current scan.
+
+        <--Args-->
+        thread(Thread): thread to add to category object
+        """
         if thread.url in self.threads.keys():
             self.threads[thread.url].update(thread)
         else:
@@ -495,6 +678,9 @@ class Category:
         self.find_oldest()
 
     def __json__(self):
+        """
+        Serialize object into dictionary for caching, called recursively
+        """
         d = {}
         d['name'] = self.name
         d['threadlist'] = []
@@ -505,6 +691,12 @@ class Category:
         return d
 
     def load(self, d):
+        """
+        Helper for loading object from dictionary. Used at loadtime recursively.
+
+        <--Args-->
+        d(dict): dict containing object information to load
+        """
         self.name = d['name']
         for thread in d['threadlist']:
             t = Thread(PostList([]), '', '', '', '', '', '', '', UserList([]), '0')
@@ -515,9 +707,32 @@ class Category:
         self.oldest = d['oldest']
 
     def __str__(self):
+        """
+        Generic string descriptor for object
+        """
         return f'Category(name={self.name}, threads={len(self.threads.keys())})'
 
 class StatTracker:
+    """
+    Backend data structure for holding stats found on a scan. Includes information about
+    edittimes, modification and deletion tallies, posts found without content, threads that were
+    made inaccessible by admins, and average statistics.
+
+    <--Attributes-->
+    user_deletions(dict): Relates user ids with deletion counts
+    user_modifcations(dict): Relates user ids with modification counts
+    deletions(dict): dict mapping category nmes to deletion tallies
+    modifications(dict): dict mapping category names to modification tallies
+    avg_edit_time(dict): dict mapping category names to average edit times
+    avg_timestamp(dict): backend dict used to hold days, hours, minutes, seconds for average edit time
+    edit_times(dict): maps category names to post ids to edit times
+    min_time(dict): maps min edit time to category name
+    max_time(dict): maps max edit time to category names
+    no_content(dict): maps category names to dicts holding thread urls and no content post tallies
+    under_five(dict): maps category names to lists of posts edited in under five minutes
+    deleted_threads(dict): dict mapping category names to lists of inaccessible urls
+    total_posts(int): total number of posts seen
+    """
     def __init__(self, src=None):
         self.user_deletions = {}
         self.user_modifications = {}
@@ -541,6 +756,13 @@ class StatTracker:
                 self.user_modifications[user] = count
         
     def update_modifications(self, src):
+        """
+        Reads DB cache and updates backend modification stats from new data
+
+        <--Args-->
+        src(dict): dict mapping categories to category names. normally called using
+        db.cache, or db.pred.
+        """
         for _, category in src.items():
             if category.name not in self.modifications.keys():
                 self.modifications[category.name] = 0
@@ -563,6 +785,14 @@ class StatTracker:
                         post.seen_for_mod = True
 
     def update_deletions(self, deletelist: DeleteList):
+        """
+        Update deletions stats using given deletelist accumulated over a scan. Note that this function
+        is currently using defunct dependencies, and should be updated to reflect new logic used for detecting
+        deletions.
+
+        <--Args-->
+        deletelist(DeleteList): deletelist to update stats from
+        """
         for post in deletelist.deletelist:
             if post.seen_for_del is False:
                 if post.category in self.deletions.keys():
@@ -580,6 +810,13 @@ class StatTracker:
                 post.seen_for_del = True
 
     def update_edit_time(self, src):
+        """
+        Reads DB cache and updates backend edit time stats from new data
+
+        <--Args-->
+        src(dict): dict mapping categories to category names. normally called using
+        db.cache, or db.pred.
+        """
         count, total = 0, 0
         min_ = None
         max_ = None
@@ -618,6 +855,10 @@ class StatTracker:
                 self.max_time[category.name] = max(seen, key = lambda x: x[0])[1]
         
     def sec_to_str(self, sec, categ): 
+        """
+        Backend helper for converting a datetime object into presentable information.
+        Note that this is seriously janky and should be fixed. Why am I putting this in a dict?
+        """
         days = sec // (24 * 3600) 
         self.avg_timestamp[categ] = {}
         if days < 0:
@@ -634,6 +875,9 @@ class StatTracker:
         self.avg_timestamp[categ]['seconds'] = sec
 
     def __json__(self):
+        """
+        Serialize object into dictionary for caching, called recursively
+        """
         d = {}
         d['user_deletions'] = self.user_deletions
         d['user_modifications'] = self.user_modifications
@@ -659,6 +903,12 @@ class StatTracker:
         return d
 
     def load(self, src):
+        """
+        Helper for loading object from dictionary. Used at loadtime recursively.
+
+        <--Args-->
+        d(dict): dict containing object information to load
+        """
         self.user_modifications = src['user_modifications']
         self.user_deletions = src['user_deletions']
         self.deletions = src['deletions']
@@ -699,6 +949,15 @@ class StatTracker:
             self.under_five[category] = li
 
 class SiteDB:
+    """
+    DB object used to store all information about a given scan. Maps category names to category objects
+    given in argument, and encapsulates a variety of high level functions that are interfaced in the scraping
+    script. 
+
+    <--Args-->
+    categories(list(Category)): list of categories to store in cache
+    name(str): name of site we are making this DB for
+    """
     def __init__(self, categories: [Category], name):
         self.name = name
         self.users = UserList([])
@@ -718,6 +977,12 @@ class SiteDB:
                     self.users.merge(thread.users)
 
     def add(self, entry: Category):
+        """
+        Adds a category object into our cache. Updates stats based on new data.
+
+        entry(Category): Category object to add to the cache. Normally this is the result
+        of crawler.parse_page.
+        """
         self.categories.append(entry)
         self.cache[entry.name] = entry
         for _, thread in entry.threads.items():
@@ -726,9 +991,22 @@ class SiteDB:
         self.stats.update_edit_time(self.cache)
 
     def set_start(self, dt):
+        """
+        Set start timestamp using given datetime object
+
+        dt(datetime): datetime to cast to string and set scan start to
+        """
         self.scan_start = dt.strftime("%Y-%m-%d %H:%M:%S")
 
     def find_oldest_index(self, url, category):
+        """
+        Findest oldest index for a given url in the category. This is used find the oldest index
+        for a thread without the need to interface lower level objects with cumbersome looping
+
+        <--Args-->
+        url(str): key to check our cache for
+        category(str): key to access our cache with
+        """
         if category in self.pred.keys():
             if url in self.pred[category].threads.keys():
                 return self.pred[category].threads[url].oldest_index
@@ -738,11 +1016,18 @@ class SiteDB:
             return 0
 
     def load(self, debug=False, file=None):
-        import zlib, tempfile, glob
+        """
+        Main load function. Files are stored in directories named from the date of their creation. 
+        zip archives are stored in these directories with a filename denoting their version. This funciton
+        finds the latest directory to load from, and the newest zip archived saved inside it. After unzipping,
+        data is loaded from json to dict format and dictionary partitions are sent to blank objects for loading.
+        The data saved is db.cache, so blank category objects are created with each object in the dictionary
+        being used for recursive loading.
+        """
+        import tempfile, glob
         from zipfile import ZipFile
         from datetime import timedelta
         filenames = [ f.path for f in os.scandir(os.getcwd() + '/cache/logs') if f.is_dir() ]
-
         now = datetime.now().strftime("%Y-%m-%d")
         if len(filenames) > 0:
             if os.getcwd() + f'/cache/logs/{now}' in filenames:
@@ -758,7 +1043,6 @@ class SiteDB:
                         break
                     else:    
                         i += 1
-
             if len(list_of_files) != 0:
                 latest_file = max(list_of_files, key=os.path.getctime)
                 v = str(int(latest_file.split('v')[1].split('.zip')[0]))
@@ -784,16 +1068,29 @@ class SiteDB:
                                 self.stats.load(data)
             
     def load_from_raw_json(self, d):
+        """
+        Loads data from a raw, unzipped json object. Requires a path to cache directory
+
+        <--Args-->
+        d(str): path to json file to load from
+        """
         with open(os.getcwd() + d, 'r') as f:
             data = json.load(f)
             self.dict_load(data)
                     
 
     def to_json(self):
+        """
+        Serializes object into a json object. NOTE: This is defunct.
+        """
         return json.dumps(self, default=lambda o: o.__dict__, 
             sort_keys=True, indent=4)
 
     def compile(self):
+        """
+        Graceful serializing helper that recursively uses child objects' __json__ method
+        to properly convert all data to a savable/loadable format
+        """
         self.stats.update_modifications(self.cache)
         self.stats.update_edit_time(self.cache)
         d = {}
@@ -812,6 +1109,12 @@ class SiteDB:
         return d
 
     def dict_load(self, d, debug=False):
+        """
+        Helper for loading db object from dictionary
+
+        <--Args-->
+        d(dict): dict object to load db object from
+        """
         self.name = d['name']
         u = UserList([])
         u.load(d['users'])
@@ -834,6 +1137,14 @@ class SiteDB:
         print(f'DB {self.name} Loaded')
 
     def get_remaining(self, category: Category):
+        """
+        If we have data cached from a previous scan, this finds threads that were previously
+        in the given category object and were no longer found in our current cache. Returns
+        a list of urls to check.
+
+        <--Args-->
+        category(Category): Category object to check from
+        """
         li = []
         if category.name in self.pred.keys():
             for thread in self.pred[category.name].threadlist:
@@ -843,6 +1154,13 @@ class SiteDB:
         return li
 
     def compare(self, src):
+        """
+        Compares two sitedbs and generates a backend dict mapping thread urls to deletelists.
+        Because deletelists will become defunct soon, it is important that this is updated to remain
+        functional.
+
+        src(SiteDB): object to compare with
+        """
         if src is not None and src:
             self.users.merge(src.users)
             for _, category in self.cache.items():
@@ -864,6 +1182,10 @@ class SiteDB:
         return self.deletes
 
     def compare_pred(self):
+        """
+        Alternate method of comparing for deletions that compares current cache with previously stored data.
+        Rather than generating a deletelist, simply returns a list of posts that were no longer found in the cache.
+        """
         li = []
         for name, category in self.pred.items():
             if name in self.cache.keys():
@@ -882,6 +1204,11 @@ class SiteDB:
         return li
 
     def write(self):
+        """
+        Main caching and exporting function. Serializes current cache, stats as json and stores 
+        it in a zip archive with filename denoting scan version for this dirctory. Directories are
+        denoted with date of creation and are meant to hold all archives associated with scans on this day
+        """
         from zipfile import ZipFile
         now = datetime.now().strftime("%Y-%m-%d")
         if not os.path.isdir(os.getcwd() + f'/cache/logs/{now}'):
@@ -951,6 +1278,10 @@ class SiteDB:
         self.report()
 
     def report(self):
+        """
+        Main reporting method for stats accumulated during last scan. Simply flushes results to stdout.
+        Consider adding a more sophisticated report method (tabulate, etc.) and saving this as a logfile.
+        """
         now = datetime.now()
         diff = now - datetime.strptime(self.last_scan, "%Y-%m-%d %H:%M:%S")
         dur =  now - datetime.strptime(self.scan_start, "%Y-%m-%d %H:%M:%S")
@@ -990,8 +1321,9 @@ class SiteDB:
                 sum_ += s
             if category in self.stats.deleted_threads.keys():
                 for url in self.stats.deleted_threads[category]:
-                    if url in self.pred[category].threads.keys():
+                    try:
                         print(f'Thread {url} no longer found and we have cached data for it')
-                    else:
+                        print(self.pred[category].threads[url].__str__())
+                    except:
                         print(f'Thread {url} no longer found and we do not have cached data for it')
         print(f'Total of {sum_} posts found without content')
