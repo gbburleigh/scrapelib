@@ -19,8 +19,8 @@ class Crawler:
             self.scraper = ThreadScraper(self.driver, self.db, debug=True)
         else:
             self.scraper = ThreadScraper(self.driver, self.db)
-        self.targets = ['https://community.upwork.com/t5/Freelancers/bd-p/freelancers', \
-                        'https://community.upwork.com/t5/Announcements/bd-p/news',\
+        self.targets = ['https://community.upwork.com/t5/Announcements/bd-p/news', \
+                        'https://community.upwork.com/t5/Freelancers/bd-p/freelancers', \
                        'https://community.upwork.com/t5/Clients/bd-p/clients', \
                        'https://community.upwork.com/t5/Agencies/bd-p/Agencies']
 
@@ -35,6 +35,7 @@ class Crawler:
             #Fetch page 
             if iter_ > 0:
                 self.regenerate_driver()
+                time.sleep(2)
             self.driver.get(target)
 
             start = datetime.now()
@@ -65,7 +66,7 @@ class Crawler:
                         bar.next()
             iter_ += 1
             self.db.add(category)
-            #self.driver.close()
+            #self.driver.quit()
 
         return self.db
 
@@ -88,7 +89,7 @@ class Crawler:
                         self.driver.get(self.generate_next(tar, currentpage))
                     self.scraper.update_page(currentpage)
                     urls = self.get_links("//a[@class='page-link lia-link-navigation lia-custom-event']")
-                    #print(f'Got {len(urls)} urls')
+                    print(f'Got {len(urls)} urls')
                     for url in urls:
                         if url in self.skipped:
                             continue

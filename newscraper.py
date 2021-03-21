@@ -17,19 +17,19 @@ class ThreadScraper:
     def make_soup(self, html, url, categ):
         """Main thread scraper function. Uses BeautifulSoup to parse HTML based on class tags and 
         compiles relevant data/metadata in dict format. Detects edit status and moderation status."""
-        try:
-            soup = BeautifulSoup(html.encode('utf-8').strip(), 'html.parser')
-            time.sleep(1)
-        except:
-            soup = BeautifulSoup(html.encode('utf-8').strip(), 'lxml')
-            time.sleep(1)
+        # try:
+        #     soup = BeautifulSoup(html.encode('utf-8').strip(), 'html.parser')
+        #     time.sleep(1)
+        # except:
+        soup = BeautifulSoup(html.encode('utf-8').strip(), 'lxml')
+            #time.sleep(1)
 
-        if soup is None:
-            self.driver.get(url)
-            soup = BeautifulSoup(self.driver.page_source, 'html.parser')
-            if soup is None:
-                self.driver.get(url)
-                soup = BeautifulSoup(self.driver.page_source, 'lxml')
+        # if soup is None:
+        #     self.driver.get(url)
+        #     soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+        #     if soup is None:
+        #         self.driver.get(url)
+        #         soup = BeautifulSoup(self.driver.page_source, 'lxml')
         userlist = UserList([])
         postlist = PostList([])
         checked_indices = []
@@ -79,20 +79,17 @@ class ThreadScraper:
 
         for pagenum in range(start, end - 1, -1):
             if pagenum == 1:
-                self.driver.get(url)
-                soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'html.parser')
-                time.sleep(1)
-                if soup is None:
-                    soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
+                pass
+                # #self.driver.get(url)
+                # soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'html.parser')
+                # time.sleep(1)
+                # if soup is None:
+                #     soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
             else:
                 if validators.url(self.generate_next(url, pagenum)):
                     self.driver.get(self.generate_next(url, pagenum))
-                    soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'html.parser')
-                    time.sleep(1)
-                    if soup is None:
-                        soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
-                else:
-                    input(self.generate_next(url, pagenum))
+                    #soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'html.parser')
+                    soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
 
             try:
                 op = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-topic')

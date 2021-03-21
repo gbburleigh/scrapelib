@@ -919,13 +919,16 @@ class SiteDB:
                             post.author.name, post.author.id, post.author.rank, post.author.joindate, \
                             post.author.url, post.editor.name, post.editor.id, post.editor.joindate, post.editor.url, post.editor.rank])
                         else:
-                            if post.id in self.pred[category.name].threads[post.url].postlist.posts.keys():
-                                old_post = self.pred[category.name].threads[post.url].postlist.posts[post.id]
-                                for post in self.deletes[thread.url].deletelist:
-                                    f.writerow([thread.title, post.postdate, post.editdate, post.edit_time, old_post.message, \
-                                    '<--Deleted-->', category.name, thread.url, post.page, post.index,\
-                                    post.author.name, post.author.id, post.author.rank, post.author.joindate, \
-                                    post.author.url, post.editor.name, post.editor.id, post.editor.joindate, post.editor.url, post.editor.rank])
+                            try:
+                                if post.id in self.pred[category.name].threads[post.url].postlist.posts.keys():
+                                    old_post = self.pred[category.name].threads[post.url].postlist.posts[post.id]
+                                    for post in self.deletes[thread.url].deletelist:
+                                        f.writerow([thread.title, post.postdate, post.editdate, post.edit_time, old_post.message, \
+                                        '<--Deleted-->', category.name, thread.url, post.page, post.index,\
+                                        post.author.name, post.author.id, post.author.rank, post.author.joindate, \
+                                        post.author.url, post.editor.name, post.editor.id, post.editor.joindate, post.editor.url, post.editor.rank])
+                            except KeyError:
+                                pass
                     if thread.url in self.deletes.keys():
                         for post in self.deletes[thread.url].deletelist:
                             f.writerow([thread.title, post.postdate, post.editdate, post.edit_time, post.message, \
@@ -934,13 +937,16 @@ class SiteDB:
                             post.author.url, post.editor.name, post.editor.id, post.editor.joindate, post.editor.url, post.editor.rank])
             if category.name in self.stats.deleted_threads.keys():
                 for url in self.stats.deleted_threads[category.name]:
-                    if url in self.pred[category.name].threads.keys():
-                        entry = self.pred[category.name].threads[url]
-                        for post in entry.postlist.postlist:
-                            f.writerow([thread.title, post.postdate, post.editdate, post.edit_time, post.message, \
-                            '<--Deleted-->', category.name, thread.url, post.page, post.index,\
-                            post.author.name, post.author.id, post.author.rank, post.author.joindate, \
-                            post.author.url, post.editor.name, post.editor.id, post.editor.joindate, post.editor.url, post.editor.rank])
+                    try:
+                        if url in self.pred[category.name].threads.keys():
+                            entry = self.pred[category.name].threads[url]
+                            for post in entry.postlist.postlist:
+                                f.writerow([thread.title, post.postdate, post.editdate, post.edit_time, post.message, \
+                                '<--Deleted-->', category.name, thread.url, post.page, post.index,\
+                                post.author.name, post.author.id, post.author.rank, post.author.joindate, \
+                                post.author.url, post.editor.name, post.editor.id, post.editor.joindate, post.editor.url, post.editor.rank])
+                    except KeyError:
+                        pass
 
         self.report()
 
