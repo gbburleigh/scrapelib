@@ -6,7 +6,12 @@ import validators
 
 class ThreadScraper:
     """
+    Main scraper object used to parse data from individual threads. Handles page scrolling,
+    object instantiation at lowest level, and generates Thread objects via make_soup.
 
+    <--Args-->
+    driver(WebDriver): webdriver to use for getting additional pages
+    sitedb(SiteDB): parent db handler
     """
     def __init__(self, driver, sitedb: SiteDB, debug=False):
         self.driver = driver
@@ -16,13 +21,24 @@ class ThreadScraper:
 
     def update_page(self, pagenum):
         """
+        Convenience method for updating the category page we're scraping from
 
+        <--Args-->
+        pagenum(int): pagenum to set as current page
         """
         self.page = pagenum
 
     def make_soup(self, html, url, categ):
         """
-        
+        Main data collection and serialization function. Creates BeautifulSoup object and 
+        collects relevant information, if available. Updates self.db.stats as needed and creates
+        Thread objects from PostList accumulated over all pages. Also checks for editor information
+        if available and parses user profiles if necessary before creating User object
+
+        <--Args-->
+        html(str): raw html data for the page to parse via BeautifulSoup
+        url(str): thread url
+        categ(str): category thread belongs to
         """
         soup = BeautifulSoup(html.encode('utf-8').strip(), 'lxml')
         userlist = UserList([])
@@ -32,7 +48,7 @@ class ThreadScraper:
         if len(self.db.pred.keys()) > 0:
             oldest_index = self.db.find_oldest_index(url, categ)
         else:
-            oldest_index = 0
+            oldest_index = None
        
         try:
             title = soup.find('h1', class_='lia-message-subject-banner lia-component-forums-widget-message-subject-banner')\
@@ -75,9 +91,10 @@ class ThreadScraper:
                     post_total = str(10 * pages)
 
         for pagenum in range(start, end - 1, -1):
+            #print(f'Currently on page {pagenum} of url {url}')
             if pagenum > 1 and validators.url(self.generate_next(url, pagenum)):
-                    self.driver.get(self.generate_next(url, pagenum))
-                    soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
+                self.driver.get(self.generate_next(url, pagenum))
+                soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
 
             try:
                 op = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-topic')
@@ -160,20 +177,30 @@ class ThreadScraper:
                             editdate = span.text
                 except:
                     editdate = ''
-                
+
+                # try:
+                #     editinfo = dateheader.find('span', class_='DateTime lia-message-edited-on lia-component-common-widget-date')
+                # except:
+                #     editinfo = None
+
                 try:
-                    edited_by = dateheader.find('span', class_='DateTime lia-message-edited-on lia-component-common-widget-date')\
-                        .find('span', class_='UserName lia-user-name lia-user-rank-Power-Member lia-component-common-widget-user-name')\
-                            .find('a').find('span').text
+                    edited_by = dateheader.find('span', class_='username_details').find('span', class_='UserName lia-user-name lia-user-rank-Power-Member lia-component-common-widget-user-name')\
+                    .find('a').find('span').text
                 except:
                     edited_by = ''
                 
                 try:
-                    edited_url = str(msg.find('span', class_='DateTime lia-message-edited-on lia-component-common-widget-date')\
-                        .find('span', class_='UserName lia-user-name lia-user-rank-Power-Member lia-component-common-widget-user-name')\
-                            .find('a').get_attribute('href'))
-                except:
+                    box = dateheader.find('span', class_='username_details').find('span', class_='UserName lia-user-name lia-user-rank-Power-Member lia-component-common-widget-user-name')\
+                    .find('a')
+                    edited_url = 'https://community.upwork.com/' 
+                    edited_url += str(box).split('href="')[1].split('"')[0]
+                except Exception as e:
                     edited_url = ''
+
+                if edited_by != '' and edited_url != '':
+                    editor_id = hashlib.md5((edited_by + edited_url).encode('utf-8')).hexdigest()[:16]
+                else:
+                    editor_id = ''
 
                 postdate = str(timestamp)
                 index = msg.find('span', class_='MessagesPositionInThread').find('a').text.replace('\n', '')
@@ -183,9 +210,12 @@ class ThreadScraper:
                 dt = datetime.strptime(postdate, date_format)
                 now = datetime.now()
                 if (now-dt).days > 7:
-                    if int(index) < oldest_index:
+                    if oldest_index is not None:
+                        if int(index) < oldest_index:
+                            expired = True
+                            last = int(index)
+                    else:
                         expired = True
-                        last = int(index)
                 
                 body = msg.find('div', class_='lia-message-body-content').find_all(['p', 'ul'])
                 post = ''
@@ -201,23 +231,22 @@ class ThreadScraper:
 
                 u = User(name, member_since, _url, rank)
                 userlist.handle_user(u)
-                if edited_url != '' and edited_by != '':
-                    user_id = hashlib.md5((edited_by + edited_url).encode('utf-8')).hexdigest()[:16]
-                else:
-                    user_id = ''
 
                 p = Post(postdate, editdate, post, u, url, pagenum, index, url.split('/t5/')[1].split('/')[0])
                 debugli.append(p.__str__())
                 in_queue = False
-                if user_id != '':
+                if editor_id != '' and edited_by != u.name:
                     queue.append((p, edited_url, edited_by))
                     in_queue = True
+                elif editor_id != '' and edited_by == u.name:
+                    p.add_edited(u)
                 if not in_queue:
                     postlist.add(p)
                 idx += 1
                 last = index
 
             if expired is True:
+                #print('Breaking..........')
                 break
         
         if len(queue) > 0:
@@ -232,28 +261,40 @@ class ThreadScraper:
                 rank_container = data_container.find('div', class_='user-userRank')
                 rank = rank_container.text.strip()
                 u = User(item[2], joindate, item[1], rank)
+                #print(f'Created user {u.__str__()}')
                 userlist.handle_user(u)
-                p.add_edited(u)
+                item[0].add_edited(u)
+                postlist.add(item[0])
 
+        #print(f'Added {len(postlist.postlist)} posts')
         postqueue = []
         if url.split('/t5/')[1].split('/')[0] in self.db.pred.keys():
             if url in self.db.pred[url.split('/t5/')[1].split('/')[0]].threads.keys():
                 for post in self.db.pred[url.split('/t5/')[1].split('/')[0]].threads[url].postlist.postlist:
                     if str(post.index) not in checked_indices:
                         print(f'Missing {post.index} in checked indices')
-                
-        return Thread(postlist, url, author, url.split('/t5/')[1].split('/')[0], \
+        t = Thread(postlist, url, author, url.split('/t5/')[1].split('/')[0], \
             self.page, post_date, title, edit_date, userlist, post_total)
+        #print(f'Created thread {t.__str__()}')
+        return t
 
     def generate_next(self, url, _iter):
         """
+        Helper function for generating next page url
 
+        <--Args-->
+        url(str): url to format
+        _iter(int): current page to format
         """
         return url + f'/page/{_iter}'
 
     def get_page_numbers(self, soup):
         """
+        Get total page number to base scraping parameters off. This should be fixed to
+        not require soup to be preloaded.
 
+        <--Args-->
+        soup(BeautifulSoup): soup object to scrape with
         """
         menubar = soup.find('div', class_='lia-paging-full-wrapper lia-paging-pager lia-paging-full-left-position lia-component-menu-bar')
         if menubar is not None:

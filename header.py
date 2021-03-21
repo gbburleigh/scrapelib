@@ -203,7 +203,10 @@ class Post:
         """
         Generic string descriptor for post
         """
-        return f'Post(name={self.author.__str__()}, id={self.id}, url={self.url}, page={self.page}, index={self.index})'
+        if self.editor.name != '':
+            return  f'Post(name={self.author.__str__()}, id={self.id}, url={self.url}, page={self.page}, index={self.index}, editor={self.editor.name})'
+        else:
+            return f'Post(name={self.author.__str__()}, id={self.id}, url={self.url}, page={self.page}, index={self.index})'
 
     def __json__(self):
         """
@@ -1059,7 +1062,6 @@ class SiteDB:
                                 self.stats.load(data)
                     else:
                         with ZipFile(os.getcwd() + f'/cache/logs/{now}/{os.path.basename(latest_file)}', 'r') as z:
-                            print(z.namelist())
                             with z.open(f'v{v}.json', 'r') as f:
                                 data = json.load(f)
                                 self.dict_load(data)
@@ -1134,7 +1136,6 @@ class SiteDB:
         except:
             now = datetime.now()
             self.last_scan = now.strftime("%Y-%m-%d %H:%M:%S")
-        print(f'DB {self.name} Loaded')
 
     def get_remaining(self, category: Category):
         """
@@ -1249,11 +1250,10 @@ class SiteDB:
                             try:
                                 if post.id in self.pred[category.name].threads[post.url].postlist.posts.keys():
                                     old_post = self.pred[category.name].threads[post.url].postlist.posts[post.id]
-                                    for post in self.deletes[thread.url].deletelist:
-                                        f.writerow([thread.title, post.postdate, post.editdate, post.edit_time, old_post.message, \
-                                        '<--Deleted-->', category.name, thread.url, post.page, post.index,\
-                                        post.author.name, post.author.id, post.author.rank, post.author.joindate, \
-                                        post.author.url, post.editor.name, post.editor.id, post.editor.joindate, post.editor.url, post.editor.rank])
+                                    f.writerow([thread.title, post.postdate, post.editdate, post.edit_time, old_post.message, \
+                                    '<--Deleted-->', category.name, thread.url, post.page, post.index,\
+                                    post.author.name, post.author.id, post.author.rank, post.author.joindate, \
+                                    post.author.url, post.editor.name, post.editor.id, post.editor.joindate, post.editor.url, post.editor.rank])
                             except KeyError:
                                 pass
                     if thread.url in self.deletes.keys():
@@ -1309,8 +1309,11 @@ class SiteDB:
             mins = self.stats.avg_timestamp[category]['minutes']
             secs = self.stats.avg_timestamp[category]['seconds']
             print(f'Average moderation time on a post in category {category} was {days} days, {hours} hours, {mins} minutes, {secs} seconds\n')
-            print(f'Min edit time: {self.stats.min_time[category].edit_time} on {self.stats.min_time[category].__str__()}\n')
-            print(f'Max edit time: {self.stats.max_time[category].edit_time} on {self.stats.max_time[category].__str__()}\n')
+            try:
+                print(f'Min edit time: {self.stats.min_time[category].edit_time} on {self.stats.min_time[category].__str__()}\n')
+                print(f'Max edit time: {self.stats.max_time[category].edit_time} on {self.stats.max_time[category].__str__()}\n')
+            except:
+                pass
             if category in self.stats.under_five.keys():
                 print(f'{len(self.stats.under_five[category])} posts edited in under five minutes for {category}')
             if category in self.stats.no_content.keys():
@@ -1323,7 +1326,7 @@ class SiteDB:
                 for url in self.stats.deleted_threads[category]:
                     try:
                         print(f'Thread {url} no longer found and we have cached data for it')
-                        print(self.pred[category].threads[url].__str__())
+                        #print(self.pred[category].threads[url].__str__())
                     except:
                         print(f'Thread {url} no longer found and we do not have cached data for it')
         print(f'Total of {sum_} posts found without content')

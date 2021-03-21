@@ -5,6 +5,11 @@ from header import *
 from datetime import datetime
 
 class Driver:
+    """
+    Main driver object for running script from. Instantiates crawler and scraper objects to handle
+    all data collection, and interfaces with db.load and db.write to handle all caching. Comparisons
+    are done via lower level objects, and handles opening and closing processes associated with webdriver.
+    """
     def __init__(self, flush=False, start=None):
         self.db = SiteDB([], 'upwork')
         if '-f' in sys.argv:
@@ -34,7 +39,8 @@ class Driver:
         
     def run(self):
         """
-        
+        Main run function. Creates an old db to load data into and to compare new db with. Creates
+        db through crawler.crawl and handles writing.
         """
         old_db = SiteDB([], 'upwork')
         old_db.load()
@@ -50,7 +56,8 @@ class Driver:
    
     def close(self):
         """
-
+        Close all processes associated with program and webdriver. Also uses pkill as a sanity
+        check if chrome process is running.
         """
         self.webdriver.quit()
         os.system('pkill -f chrome')
@@ -58,8 +65,9 @@ class Driver:
  
 if __name__ == "__main__":
     now = datetime.now()
+    d = Driver(start=now)
     try:
-        d = Driver(start=now)
+        d.run()
     except KeyboardInterrupt:
         d.close()
         os.system('deactivate')
