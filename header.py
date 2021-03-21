@@ -226,12 +226,12 @@ class Post:
         self.seen_for_mod = d['seen_for_mod']
         self.seen_for_del = d['seen_for_del']
         self.category = d['category']
-        try:
-            self.editor = d['editor']
-        except:
-            u = User('', '', '', '')
-            u.load(d['editor'])
-            self.editor = u
+        #try:
+            #self.editor = d['editor']
+        #except:
+        u = User('', '', '', '')
+        u.load(d['editor'])
+        self.editor = u
 
 class PostList:
     def __init__(self, posts : [Post]):
