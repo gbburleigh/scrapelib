@@ -188,6 +188,32 @@ class Post:
         """
         self.editor = user
 
+    def enumerate_data(self, return_str=False):
+        """
+        Prints all associated data with a post. This is used to flush post data when we find the same
+        post id with no content on a later scan.
+
+        <--Args-->
+        return_str(bool): determine if we return anything or print to stdout
+        """
+        if not return_str:
+            print(f'Message: {self.message}')
+            print(f'URL: {self.url}')
+            print(f'Author: {self.author.__str__()}')
+            if self.editor.name != '':
+                print(f'Editor: {self.editor.__str__()}')
+            return None
+        else:
+            body = ''
+            body +=(f'Message: {self.message}')
+            body +=(f'URL: {self.url}')
+            body +=(f'Author: {self.author.__str__()}')
+            if self.editor.name != '':
+                body +=(f'Editor: {self.editor.__str__()}')
+            return body
+
+        
+
     def str_to_td(self, s):
         """ 
         Helper for converting a date string to a timedelta, used in determining edit time
@@ -1279,6 +1305,7 @@ class SiteDB:
                         pass
 
         self.report()
+        self.save_log()
 
     def report(self):
         """
@@ -1301,6 +1328,8 @@ class SiteDB:
         li = self.compare_pred()
         if len(li) > 0:
             print(f'{len(li)} Posts found deleted w/o DeleteList:\n')
+            for post in li:
+                post.enumerate_data(return_str=False)
         else:
             print('No deletions detected since last scan.')
         for category in self.stats.modifications.keys():
@@ -1328,8 +1357,100 @@ class SiteDB:
             if category in self.stats.deleted_threads.keys():
                 for url in self.stats.deleted_threads[category]:
                     try:
+                        thread = self.pred[category].threads[url]
                         print(f'Thread {url} no longer found and we have cached data for it')
+                        for post in thread.postlist.postlist:
+                            _ = post.enumerate_data()
                         #print(self.pred[category].threads[url].__str__())
                     except:
                         print(f'Thread {url} no longer found and we do not have cached data for it')
         print(f'Total of {sum_} posts found without content')
+        for name, category in self.cache.items():
+            for thread in category.threadlist:
+                for post in thread.postlist.postlist:
+                    if post.message == '':
+                        if category.name in self.pred.keys():
+                            if thread.url in self.pred[category.name].threads.keys():
+                                if post.id in self.pred[category.name].threads[url].posts:
+                                    print(post.enumerate_data(return_str=True))
+
+    def create_log(self):
+        """
+        Creates a str to log to file in same format as report function above. Incldues additional
+        information such as individual post and threads stats.
+        """
+        body = ''
+        now = datetime.now()
+        diff = now - datetime.strptime(self.last_scan, "%Y-%m-%d %H:%M:%S")
+        dur =  now - datetime.strptime(self.scan_start, "%Y-%m-%d %H:%M:%S")
+        days, hours, minutes = diff.days, diff.seconds // 3600, diff.seconds // 60 % 60
+        durdays, durhours, durmins = dur.days, dur.seconds // 3600, dur.seconds // 60 % 60
+        body += (f'Scan took {durhours} hours, {durmins} minutes\n')
+        body += (f'{days} days, {hours} hours, and {minutes} minutes since last scan.\n')
+        if len(self.stats.deletions.keys()) > 0:
+            for category in self.stats.deletions.keys():
+                if self.stats.deletions[category] > 0:
+                    body += (f'{self.stats.deletions[category]} posts no longer found in category {category}\n')
+                else:
+                    body += (f'No posts found deleted in category {category}\n')
+        li = self.compare_pred()
+        if len(li) > 0:
+            body += (f'{len(li)} Posts found deleted w/o DeleteList:\n')
+            for post in li:
+                body += post.enumerate_data(return_str=True)
+        else:
+            body += ('No deletions detected since last scan.')
+        for category in self.stats.modifications.keys():
+            body += (f'{self.stats.modifications[category]} posts moderated in category {category}\n')
+        sum_ = 0
+        for category in self.stats.avg_timestamp.keys():
+            days = self.stats.avg_timestamp[category]['days']
+            hours = self.stats.avg_timestamp[category]['hours']
+            mins = self.stats.avg_timestamp[category]['minutes']
+            secs = self.stats.avg_timestamp[category]['seconds']
+            body += (f'Average moderation time on a post in category {category} was {days} days, {hours} hours, {mins} minutes, {secs} seconds\n')
+            try:
+                body += (f'Min edit time: {self.stats.min_time[category].edit_time} on {self.stats.min_time[category].__str__()}\n')
+                body += (f'Max edit time: {self.stats.max_time[category].edit_time} on {self.stats.max_time[category].__str__()}\n')
+            except:
+                pass
+            if category in self.stats.under_five.keys():
+                body += (f'{len(self.stats.under_five[category])} posts edited in under five minutes for {category}')
+            if category in self.stats.no_content.keys():
+                s = 0
+                for url, count in self.stats.no_content[category].items():
+                    s += count
+                body += (f'{s} posts found without content in category {category}')
+                sum_ += s
+            if category in self.stats.deleted_threads.keys():
+                for url in self.stats.deleted_threads[category]:
+                    try:
+                        thread = self.pred[category].threads[url]
+                        body += (f'Thread {url} no longer found and we have cached data for it')
+                        for post in thread.postlist.postlist:
+                            body += (post.enumerate_data(return_str=True))
+                        #print(self.pred[category].threads[url].__str__())
+                    except:
+                        body += (f'Thread {url} no longer found and we do not have cached data for it')
+        body +=(f'Total of {sum_} posts found without content')
+
+        for name, category in self.cache.items():
+            for thread in category.threadlist:
+                for post in thread.postlist.postlist:
+                    if post.message == '':
+                        if category.name in self.pred.keys():
+                            if thread.url in self.pred[category.name].threads.keys():
+                                if post.id in self.pred[category.name].threads[url].posts:
+                                    body += post.enumerate_data(return_str=True)
+
+        return body
+
+    def save_log(self):
+        """
+        Saves a logfile with a simple naming scheme using the data created in the function above
+        Saves to the 'reports' directory in cache
+        """
+        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with open(os.getcwd() + f'/cache/reports/{now}', w) as f:
+            data = self.create_log()
+            f.write(data)
