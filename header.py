@@ -1371,8 +1371,8 @@ class SiteDB:
                     if post.message == '':
                         if category.name in self.pred.keys():
                             if thread.url in self.pred[category.name].threads.keys():
-                                if post.id in self.pred[category.name].threads[url].posts:
-                                    print(post.enumerate_data(return_str=True))
+                                if post.id in self.pred[category.name].threads[thread.url].posts.keys():
+                                    print(self.pred[category.name].threads[thread.url].posts[post.id].enumerate_data(return_str=True))
 
     def create_log(self):
         """
