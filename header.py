@@ -1328,8 +1328,8 @@ class SiteDB:
         li = self.compare_pred()
         if len(li) > 0:
             print(f'{len(li)} Posts found deleted w/o DeleteList:\n')
-            for post in li:
-                post.enumerate_data(return_str=False)
+            #for post in li:
+                #post.enumerate_data(return_str=False)
         else:
             print('No deletions detected since last scan.')
         for category in self.stats.modifications.keys():
@@ -1355,12 +1355,14 @@ class SiteDB:
                 print(f'{s} posts found without content in category {category}')
                 sum_ += s
             if category in self.stats.deleted_threads.keys():
+                print(f'Got {len(self.stats.deleted_threads[category])} threads that were inaccessible')
                 for url in self.stats.deleted_threads[category]:
                     try:
                         thread = self.pred[category].threads[url]
                         print(f'Thread {url} no longer found and we have cached data for it')
-                        for post in thread.postlist.postlist:
-                            _ = post.enumerate_data()
+                        #for post in thread.postlist.postlist:
+                        #   _ = post.enumerate_data()
+                            #print(post.__str__())
                         #print(self.pred[category].threads[url].__str__())
                     except:
                         print(f'Thread {url} no longer found and we do not have cached data for it')
@@ -1397,8 +1399,8 @@ class SiteDB:
         li = self.compare_pred()
         if len(li) > 0:
             body += (f'{len(li)} Posts found deleted w/o DeleteList:\n')
-            for post in li:
-                body += post.enumerate_data(return_str=True)
+            #for post in li:
+            #    body += post.enumerate_data(return_str=True)
         else:
             body += ('No deletions detected since last scan.')
         for category in self.stats.modifications.keys():
@@ -1424,6 +1426,7 @@ class SiteDB:
                 body += (f'{s} posts found without content in category {category}')
                 sum_ += s
             if category in self.stats.deleted_threads.keys():
+                print(f'Got {len(self.stats.deleted_threads[category])} threads that were inaccessible')
                 for url in self.stats.deleted_threads[category]:
                     try:
                         thread = self.pred[category].threads[url]
