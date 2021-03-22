@@ -1456,6 +1456,6 @@ class SiteDB:
         Saves to the 'reports' directory in cache
         """
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        with open(os.getcwd() + f'/cache/reports/{now}', w) as f:
+        with open(os.getcwd() + f'/cache/reports/{now}', 'w') as f:
             data = self.create_log()
             f.write(data)
