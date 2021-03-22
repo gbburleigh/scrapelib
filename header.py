@@ -1372,7 +1372,8 @@ class SiteDB:
                         if category.name in self.pred.keys():
                             if thread.url in self.pred[category.name].threads.keys():
                                 if post.id in self.pred[category.name].threads[thread.url].posts.keys():
-                                    print(self.pred[category.name].threads[thread.url].posts[post.id].enumerate_data(return_str=True))
+                                    if self.pred[category.name].threads[thread.url].posts[post.id].message != '':
+                                        print(self.pred[category.name].threads[thread.url].posts[post.id].enumerate_data(return_str=True))
 
     def create_log(self):
         """
@@ -1440,8 +1441,9 @@ class SiteDB:
                     if post.message == '':
                         if category.name in self.pred.keys():
                             if thread.url in self.pred[category.name].threads.keys():
-                                if post.id in self.pred[category.name].threads[url].posts:
-                                    body += post.enumerate_data(return_str=True)
+                                if post.id in self.pred[category.name].threads[thread.url].posts:
+                                    if self.pred[category.name].threads[thread.url].message != '':
+                                        body += self.pred[category.name].threads[thread.url].posts[post.id].enumerate_data(return_str=True)
 
         return body
 
@@ -1450,7 +1452,7 @@ class SiteDB:
         Saves a logfile with a simple naming scheme using the data created in the function above
         Saves to the 'reports' directory in cache
         """
-        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with open(os.getcwd() + f'/cache/reports/{now}', w) as f:
             data = self.create_log()
             f.write(data)
