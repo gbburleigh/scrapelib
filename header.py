@@ -1067,8 +1067,8 @@ class SiteDB:
                 curr = None
             else:
                 i = 1
+                now = datetime.strptime(now, "%Y-%m-%d")
                 while True:
-                    #now = datetime.strptime(now, "%Y-%m-%d")
                     curr = (now - timedelta(days=i)).strftime("%Y-%m-%d")
                     list_of_files = glob.glob(os.getcwd() + f'/cache/logs/{curr}/*.zip')
                     if len(list_of_files) > 0:
