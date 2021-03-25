@@ -1445,7 +1445,7 @@ class SiteDB:
                         if category.name in self.pred.keys():
                             if thread.url in self.pred[category.name].threads.keys():
                                 if post.id in self.pred[category.name].threads[thread.url].posts:
-                                    if self.pred[category.name].threads[thread.url].message != '':
+                                    if self.pred[category.name].threads[thread.url].posts[post.id].message != '':
                                         body += self.pred[category.name].threads[thread.url].posts[post.id].enumerate_data(return_str=True)
 
         return body
