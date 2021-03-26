@@ -1,6 +1,9 @@
 import hashlib, json, os, sys, csv, random
 from datetime import datetime
 
+class DBError(Exception):
+    pass
+
 class User:
     """
     Main wrapper object for user info. Encapsulates ID generation via available info
