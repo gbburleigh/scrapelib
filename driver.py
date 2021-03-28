@@ -130,14 +130,13 @@ class Driver:
         Main wrapper for running entire scan. Handles restarting and running through methods defined above.
         Lower level exceptions aside from major crashes are handled at object level.
         """
-
-        done = False
+        
         #While we haven't successfully run
-        while not done:
+        while True:
             try:
                 #Try to run
                 self.run()
-                done = True
+                break
             except DBError:
                 #Otherwise restart
                 self.restart()

@@ -1399,6 +1399,9 @@ class SiteDB:
                     body += (f'{self.stats.deletions[category]} posts no longer found in category {category}\n')
                 else:
                     body += (f'No posts found deleted in category {category}\n')
+        for url, deletelist in self.deletes.items():
+            for post in deletelist.deletelist:
+                body += f'Post {post.__str__()} no longer found\n'
         li = self.compare_pred()
         if len(li) > 0:
             body += (f'{len(li)} Posts found deleted w/o DeleteList:\n')
@@ -1421,7 +1424,7 @@ class SiteDB:
             except:
                 pass
             if category in self.stats.under_five.keys():
-                body += (f'{len(self.stats.under_five[category])} posts edited in under five minutes for {category}')
+                body += (f'{len(self.stats.under_five[category])} posts edited in under five minutes for {category}\n')
             if category in self.stats.no_content.keys():
                 s = 0
                 for url, count in self.stats.no_content[category].items():
@@ -1429,16 +1432,16 @@ class SiteDB:
                 body += (f'{s} posts found without content in category {category}')
                 sum_ += s
             if category in self.stats.deleted_threads.keys():
-                print(f'Got {len(self.stats.deleted_threads[category])} threads that were inaccessible')
+                print(f'Got {len(self.stats.deleted_threads[category])} threads that were inaccessible\n')
                 for url in self.stats.deleted_threads[category]:
                     try:
                         thread = self.pred[category].threads[url]
-                        body += (f'Thread {url} no longer found and we have cached data for it')
+                        body += (f'Thread {url} no longer found and we have cached data for it\n')
                         for post in thread.postlist.postlist:
                             body += (post.enumerate_data(return_str=True))
                         #print(self.pred[category].threads[url].__str__())
                     except:
-                        body += (f'Thread {url} no longer found and we do not have cached data for it')
+                        body += (f'Thread {url} no longer found and we do not have cached data for it\n')
         body +=(f'Total of {sum_} posts found without content')
 
         for name, category in self.cache.items():
