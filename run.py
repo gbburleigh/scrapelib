@@ -10,8 +10,6 @@ def run():
     now = datetime.now()
     print(f'Starting scan at {now}')
     d = Driver(start=now)
-    if '-flush' in sys.argv:
-        d.flush()
     try:
         d.run()
     except KeyboardInterrupt:

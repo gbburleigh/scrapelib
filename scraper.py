@@ -64,9 +64,13 @@ class ThreadScraper:
         if len(self.db.pred.keys()) > 0:
             #Get the oldest index
             oldest_index = self.db.find_oldest_index(url, categ)
+            old_indices = self.db.get_indices(url, categ)
+            if len(old_indices) == 0:
+                old_indices = None
         else:
             #Otherwise, we only use postdate to determine when to stop
             oldest_index = None
+            old_indices = None
        
         try:
             #If we can't parse the title
@@ -268,13 +272,35 @@ class ThreadScraper:
                 date_format = "%b %d, %Y %I:%M:%S %p"
                 dt = datetime.strptime(postdate, date_format)
                 now = datetime.now()
-                if (now-dt).days > 7:
-                    if oldest_index is not None:
-                        if int(index) < oldest_index:
+
+                """
+                We only expire if the following conditions are met:
+
+                1. The thread we are scanning has more than 10 pages. Otherwise, it is inexpensive to
+                scan the entire thread.
+
+                2. We have seen a post that is older than a week. If we have no cached data, we stop
+                scanning here.
+
+                3. We have an oldest index, we've encountered a post older than a week, and we've reached
+                the oldest index.
+
+                4. We have an oldest index and a list of indices we encountered on the last scan. If
+                all the previous criteria has been met and we have more checked indices than old indices
+                we break.
+                """
+
+                if pages > 10:
+                    if (now-dt).days > 7:
+                        if oldest_index is not None:
+                            if old_indices is not None:
+                                if len(old_indices) < len(checked_indices) and all(elem in checked_indices for elem in old_indices):
+                                    expired = True
+                            else:
+                                if oldest_index in checked_indices:
+                                    expired = True
+                        else:
                             expired = True
-                            last = int(index)
-                    else:
-                        expired = True
                 
                 #Parse message content
                 body = msg.find('div', class_='lia-message-body-content').find_all(['p', 'ul'])
@@ -309,7 +335,6 @@ class ThreadScraper:
                 if not in_queue:
                     postlist.add(p)
                 idx += 1
-                last = index
 
             #If we determined we should stop, break here
             if expired is True:
@@ -343,6 +368,10 @@ class ThreadScraper:
                 for post in self.db.pred[url.split('/t5/')[1].split('/')[0]].threads[url].postlist.postlist:
                     if str(post.index) not in checked_indices:
                         print(f'Missing {post.index} in checked indices on {url}')
+
+        if old_indices is not None:
+            if sorted(checked_indices) != sorted(old_indices):
+                diff = self.list_diff(checked_indices, old_indices)
         
         #Generate thread object and return
         t = Thread(postlist, url, author, url.split('/t5/')[1].split('/')[0], \
@@ -383,3 +412,16 @@ class ThreadScraper:
             pages = 1
 
         return pages
+
+    def list_diff(self, li1, li2):
+        """
+        Helper for getting differences between two lists. Used for finding elements in checked indices
+        that are not present in old indices.
+
+        Referenced from: https://www.geeksforgeeks.org/python-difference-two-lists/
+
+        <--Args-->
+        li1(list): First list item to check
+        li2(list): Second list item to check
+        """
+        return (list(list(set(li1)-set(li2)) + list(set(li2)-set(li1))))

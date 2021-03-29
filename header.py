@@ -1050,6 +1050,24 @@ class SiteDB:
         else:
             return 0
 
+    def get_indices(self, url, category):
+        """
+        Helper for getting all indices scanned for a URL in cached data. Used to ensure that all
+        indices on a thread are visited when we've seen it before
+
+        <--Args-->
+        url(str): key to check our cache for
+        category(str): key to access our cache with
+        """
+        li = []
+        if category in self.pred.keys():
+            if url in self.pred[category].threads.keys():
+                for post in self.pred[category].threads[url].postlist.postlist:
+                    li.append(post.index)
+
+        return li
+
+
     def load(self, debug=False, file=None):
         """
         Main load function. Files are stored in directories named from the date of their creation. 

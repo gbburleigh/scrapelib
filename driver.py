@@ -52,8 +52,9 @@ class Driver:
         """
 
         #Load old cache
-        old_db = SiteDB([], 'upwork')
-        old_db.load()
+        if '-r' not in sys.argv:
+            old_db = SiteDB([], 'upwork')
+            old_db.load()
 
         #Set it to current DBs old cache
         self.db.pred = old_db.cache
@@ -130,7 +131,7 @@ class Driver:
         Main wrapper for running entire scan. Handles restarting and running through methods defined above.
         Lower level exceptions aside from major crashes are handled at object level.
         """
-        
+
         #While we haven't successfully run
         while True:
             try:
