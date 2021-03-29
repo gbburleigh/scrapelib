@@ -56,18 +56,18 @@ class Driver:
             old_db = SiteDB([], 'upwork')
             old_db.load()
 
-        #Set it to current DBs old cache
-        self.db.pred = old_db.cache
+            #Set it to current DBs old cache
+            self.db.pred = old_db.cache
 
         #Generate crawler object
         crawler = self.generate_crawler()
 
         #Generate DB for latest scan
         self.db = crawler.crawl()
-        #if '-d' in sys.argv:
 
-        #Get deleted info
-        _ = self.db.compare(old_db)
+        if '-r' not in sys.argv:
+            #Get deleted info
+            _ = self.db.compare(old_db)
         
         #Write result
         self.db.write()
