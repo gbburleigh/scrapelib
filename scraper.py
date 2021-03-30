@@ -271,8 +271,10 @@ class ThreadScraper:
         if old_indices is not None:
             if sorted(checked_indices) != sorted(old_indices):
                 diff = self.list_diff(checked_indices, old_indices)
-
-            assert(all(elem in old_indices for elem in checked_indices))
+            try:
+                assert(all(elem in checked_indices for elem in old_indices))
+            except:
+                print(self.list_diff(checked_indices, old_indices))
         
         #Generate thread object and return
         t = Thread(postlist, url, author, url.split('/t5/')[1].split('/')[0], \
