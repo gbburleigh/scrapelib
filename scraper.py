@@ -7,7 +7,7 @@ import validators
 class ThreadScraper:
     """
     Main scraper object used to parse data from individual threads. Handles page scrolling,
-    object instantiation at lowest level, and generates Thread objects via make_soup.
+    object instantiation at lowest level, and generates Thread objects via parse().
 
     <--Args-->
     driver(WebDriver): webdriver to use for getting additional pages
@@ -37,7 +37,7 @@ class ThreadScraper:
         #Reset page number
         self.page = pagenum
 
-    def make_soup(self, html, url, categ):
+    def parse(self, html, url, categ, page_expire_limit=10):
         """
         Main data collection and serialization function. Creates BeautifulSoup object and 
         collects relevant information, if available. Updates self.db.stats as needed and creates
@@ -107,15 +107,19 @@ class ThreadScraper:
         
         #Backend tracking params
         now = datetime.now()
-        debugli = []
         post_total = str(10 * pages)
-        last = 0
 
         #Try to find original author container
         try:
             op = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-reply')
         except:
             op = None
+        
+        #Get thread author name
+        try:
+            author = op[0].find('a', class_='lia-link-navigation lia-page-link lia-user-name-link user_name').find('span').text
+        except:
+            author = ''
 
         #Parse out the number of posts on the thread
         if op is not None:
@@ -134,144 +138,29 @@ class ThreadScraper:
                 self.driver.get(self.generate_next(url, pagenum))
                 soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
 
-            #Get all possible message divs and add them to a list to iterate through
-            try:
-                op = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-topic')
-            except:
-                op = None
-           
-            #Get thread author name
-            try:
-                author = op[0].find('a', class_='lia-link-navigation lia-page-link lia-user-name-link user_name').find('span').text
-            except:
-                author = ''
-            
-            try:
-                unread = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-reply')
-            except:
-                unread = None
-            
-            try:
-                solved = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-reply lia-list-row-thread-solved')
-            except:
-                solved = None
-
-            try:
-                resolved = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-topic lia-list-row-thread-solved')
-            except:
-                resolved = None
-            
-            try:
-                solution = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-reply lia-list-row-thread-solved lia-accepted-solution')
-            except:
-                solution = None
-
-            try:
-                no_content = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-reply lia-message-with-no-content')
-            except:
-                no_content = None
-
-            #We have messages with no content, handle them in our statstracker in sitedb
-            if no_content is not None:
-                if categ in self.db.stats.no_content.keys():
-                    #db.stats.no_content maps category names to URLs to count of no content posts
-                    if url in self.db.stats.no_content[categ].keys():
-                        self.db.stats.no_content[categ][url] += len(no_content)
-                    else:
-                        self.db.stats.no_content[categ][url] = len(no_content)
-                else:
-                    self.db.stats.no_content[categ] = {url: len(no_content)}
-
-            #Create list to iterate through
+            msgli = self.get_message_divs(soup, categ, url)
             expired = False
-            msgs = op + unread + solved + no_content + resolved + solution
             idx = 0
-
-            #If we're in debug mode, delete some random messages
-            if self.debug is True:
-                l = []
-                for msg in msgs:
-                    l.append(msg)
-                l.remove(random.choice(l))
-                msgs = l
-
-            #Convert ResultSet to generic list
-            msgli = []
-            for msg in msgs:
-                msgli.append(msg)
-
 
             queue = []
             #Iterate through list in reverse order
-            for msg in reversed(msgli):
+            for msg in msgli:
                 if msg is None:
                     continue
-
-                #Set default edit status
-                edit_status = 'Unedited'
-
-                #Get profile URL
-                _url = 'https://community.upwork.com' + \
-                    msg.find('a', class_='lia-link-navigation lia-page-link lia-user-name-link user_name', href=True)['href']
+                p, editor_id, edited_url, edited_by = self.parse_message_div(msg, url, pagenum)
+                checked_indices.append(p.index)
+                userlist.handle_user(p.author)
+                in_queue = False
                 
-                #Get profile name
-                name = msg.find('a', class_='lia-link-navigation lia-page-link lia-user-name-link user_name').find('span').text
-                
-                #Get profile joindate
-                member_since = msg.find('span', class_='custom-upwork-member-since').text.split(': ')[1]
-                
-                #Get profile rank
-                rank = msg.find('div', class_='lia-message-author-rank lia-component-author-rank lia-component-message-view-widget-author-rank')\
-                    .text.replace(' ', '').strip()
-                
-                #Get post/edit info container
-                dateheader = msg.find('p', class_='lia-message-dates lia-message-post-date lia-component-post-date-last-edited lia-paging-page-link custom-lia-message-dates')
-                
-                #Get postdate
-                timestamp = dateheader.find('span', class_='DateTime lia-message-posted-on lia-component-common-widget-date')\
-                            .find('span', class_='message_post_text').text
-                
-                #Try to parse an editdate if available
-                try:
-                    e = dateheader.find('span', class_='DateTime lia-message-edited-on lia-component-common-widget-date')
-                    for span in e.find_all('span', class_='message_post_text'):
-                        if span.text != 'by':
-                            editdate = span.text
-                except:
-                    editdate = ''
-
-                #Try to parse an editor name if available
-                try:
-                    edited_by = dateheader.find('span', class_='username_details').find('span', class_='UserName lia-user-name lia-user-rank-Power-Member lia-component-common-widget-user-name')\
-                    .find('a').find('span').text
-                except:
-                    edited_by = ''
-                
-                #Try to post an editor URL
-                try:
-                    box = dateheader.find('span', class_='username_details').find('span', class_='UserName lia-user-name lia-user-rank-Power-Member lia-component-common-widget-user-name')\
-                    .find('a')
-                    edited_url = 'https://community.upwork.com/' 
-                    edited_url += str(box).split('href="')[1].split('"')[0]
-                except Exception as e:
-                    edited_url = ''
-
-                #If we have editor info, generate MD5 hash ID for them
-                if edited_by != '' and edited_url != '':
-                    editor_id = hashlib.md5((edited_by + edited_url).encode('utf-8')).hexdigest()[:16]
-                else:
-                    editor_id = ''
-
-                #Get post index and add to checked indices
-                postdate = str(timestamp)
-                index = msg.find('span', class_='MessagesPositionInThread').find('a').text.replace('\n', '')
-                checked_indices.append(index)
-
-                #If message is older than a week old and we've passed our oldest index break.
-                #If we don't have an oldest index, just break when we find a message thats a week old
-                date_format = "%b %d, %Y %I:%M:%S %p"
-                dt = datetime.strptime(postdate, date_format)
-                now = datetime.now()
+                #If this post was edited, add it to the queue to find the editor info
+                if editor_id != '' and edited_by != p.author.name:
+                    queue.append((p, edited_url, edited_by))
+                    in_queue = True
+                elif editor_id != '' and edited_by == p.author.name:
+                    p.add_edited(p.author)
+                if not in_queue:
+                    postlist.add(p)
+                idx += 1
 
                 """
                 We only expire if the following conditions are met:
@@ -290,7 +179,13 @@ class ThreadScraper:
                 we break.
                 """
 
-                if pages > 10:
+                #If message is older than a week old and we've passed our oldest index break.
+                #If we don't have an oldest index, just break when we find a message thats a week old
+                date_format = "%b %d, %Y %I:%M:%S %p"
+                dt = datetime.strptime(p.postdate, date_format)
+                now = datetime.now()
+
+                if pages > page_expire_limit:
                     if (now-dt).days > 7:
                         if oldest_index is not None:
                             if old_indices is not None:
@@ -301,40 +196,6 @@ class ThreadScraper:
                                     expired = True
                         else:
                             expired = True
-                
-                #Parse message content
-                body = msg.find('div', class_='lia-message-body-content').find_all(['p', 'ul'])
-                post = ''
-                for p in body:
-                    if p.text == '&nbsp':
-                        pass
-                    if p.name == 'ul':
-                        li = p.find_all('li')
-                        for item in li:
-                            post += item.text
-                    else:
-                        post += ('' + p.text + '').replace('\u00a0', '').replace('\n', '')
-
-                #Generate author user object
-                u = User(name, member_since, _url, rank)
-
-                #Handle user object in Thread userlist
-                userlist.handle_user(u)
-
-                #Generate post object
-                p = Post(postdate, editdate, post, u, url, pagenum, index, url.split('/t5/')[1].split('/')[0])
-                debugli.append(p.__str__())
-                in_queue = False
-                
-                #If this post was edited, add it to the queue to find the editor info
-                if editor_id != '' and edited_by != u.name:
-                    queue.append((p, edited_url, edited_by))
-                    in_queue = True
-                elif editor_id != '' and edited_by == u.name:
-                    p.add_edited(u)
-                if not in_queue:
-                    postlist.add(p)
-                idx += 1
 
             #If we determined we should stop, break here
             if expired is True:
@@ -362,16 +223,56 @@ class ThreadScraper:
                 item[0].add_edited(u)
                 postlist.add(item[0])
 
+        missing = []
         #Debug helper for checking if any posts were missed in last scan
         if url.split('/t5/')[1].split('/')[0] in self.db.pred.keys():
             if url in self.db.pred[url.split('/t5/')[1].split('/')[0]].threads.keys():
                 for post in self.db.pred[url.split('/t5/')[1].split('/')[0]].threads[url].postlist.postlist:
                     if str(post.index) not in checked_indices:
-                        print(f'Missing {post.index} in checked indices on {url}')
+                        missing.append((post.index, post.page))
+
+        missingqueue = []
+        for item in missing:
+            missing_bool = False
+            self.driver.get(self.generate_next(url, item[1]))
+            soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
+            msgli = self.get_message_divs(soup, categ, url)
+            for msg in msgli:
+                p, editor_id, edited_url, edited_by = self.parse_message_div(msg, url, item[1])
+                if p.index == item[0] or p.index not in checked_indices:
+                    if editor_id != '' and edited_by != p.author.name:
+                        missingqueue.append((p, edited_url, edited_by))
+                        missing_bool = True
+                    elif editor_id != '' and edited_by == p.author.name:
+                        p.add_edited(p.author)
+                    if not missing_bool:
+                        postlist.add(p)
+
+        for item in missingqueue:
+            #Get editor profile
+            self.driver.get(item[1])
+
+            #Parse out relevant user info
+            soup = BeautifulSoup(self.driver.page_source, 'lxml')
+            data_container = soup.find('div', class_='userdata-combine-container')
+            joininfo = data_container.find_all('span', class_='member-info')
+            for entry in joininfo:
+                if entry.text != 'Member since:':
+                    joindate = entry.text
+            rank_container = data_container.find('div', class_='user-userRank')
+            rank = rank_container.text.strip()
+
+            #Create user object and handle it, then add post
+            u = User(item[2], joindate, item[1], rank)
+            userlist.handle_user(u)
+            item[0].add_edited(u)
+            postlist.add(item[0])
 
         if old_indices is not None:
             if sorted(checked_indices) != sorted(old_indices):
                 diff = self.list_diff(checked_indices, old_indices)
+
+            assert(all(elem in old_indices for elem in checked_indices))
         
         #Generate thread object and return
         t = Thread(postlist, url, author, url.split('/t5/')[1].split('/')[0], \
@@ -412,6 +313,159 @@ class ThreadScraper:
             pages = 1
 
         return pages
+
+    def get_message_divs(self, soup, categ, url):
+        """
+        Wrapper function for fetching all possible message containers on a given page of a thread.
+        Converts BS4 ResultSet object to list and sorts/reverses it to crawl backwards through a thread
+        in order.
+
+        <--Args-->
+        soup(BeautifulSoup): soup object to parse from. needs to have current html loaded into it
+        categ(str): category this thread was found in
+        url(str): thread url
+        """
+        #Get all possible message divs and add them to a list to iterate through
+        try:
+            op = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-topic')
+        except:
+            op = None
+        
+        try:
+            unread = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-reply')
+        except:
+            unread = None
+        
+        try:
+            solved = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-reply lia-list-row-thread-solved')
+        except:
+            solved = None
+
+        try:
+            resolved = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-topic lia-list-row-thread-solved')
+        except:
+            resolved = None
+        
+        try:
+            solution = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-reply lia-list-row-thread-solved lia-accepted-solution')
+        except:
+            solution = None
+
+        try:
+            no_content = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-reply lia-message-with-no-content')
+        except:
+            no_content = None
+
+        #We have messages with no content, handle them in our statstracker in sitedb
+        if no_content is not None:
+            if categ in self.db.stats.no_content.keys():
+                #db.stats.no_content maps category names to URLs to count of no content posts
+                if url in self.db.stats.no_content[categ].keys():
+                    self.db.stats.no_content[categ][url] += len(no_content)
+                else:
+                    self.db.stats.no_content[categ][url] = len(no_content)
+            else:
+                self.db.stats.no_content[categ] = {url: len(no_content)}
+
+        #Create list to iterate through
+        msgs = op + unread + solved + no_content + resolved + solution
+
+        msgli = []
+        for msg in msgs:
+            msgli.append(msg)
+
+        return reversed(msgli)
+
+    def parse_message_div(self, msg, url, pagenum):
+        """
+        Wrapper function for parsing relevant information out of a message containers. Uses BS4 tag element
+        to parse html and get necessary data for instantiating post object. This is used in main parsing function as
+        well as cleanup/validation.
+
+        <--Args-->
+        msg(bs4.element): beautifulsoup element to parse HTML with
+        url(str): url of this thread
+        pagenum(str): pagenumber in thread this message was found on
+        """
+        #Set default edit status
+        edit_status = 'Unedited'
+
+        #Get profile URL
+        _url = 'https://community.upwork.com' + \
+            msg.find('a', class_='lia-link-navigation lia-page-link lia-user-name-link user_name', href=True)['href']
+        
+        #Get profile name
+        name = msg.find('a', class_='lia-link-navigation lia-page-link lia-user-name-link user_name').find('span').text
+        
+        #Get profile joindate
+        member_since = msg.find('span', class_='custom-upwork-member-since').text.split(': ')[1]
+        
+        #Get profile rank
+        rank = msg.find('div', class_='lia-message-author-rank lia-component-author-rank lia-component-message-view-widget-author-rank')\
+            .text.replace(' ', '').strip()
+        
+        #Get post/edit info container
+        dateheader = msg.find('p', class_='lia-message-dates lia-message-post-date lia-component-post-date-last-edited lia-paging-page-link custom-lia-message-dates')
+        
+        #Get postdate
+        timestamp = dateheader.find('span', class_='DateTime lia-message-posted-on lia-component-common-widget-date')\
+                    .find('span', class_='message_post_text').text
+        
+        #Try to parse an editdate if available
+        try:
+            e = dateheader.find('span', class_='DateTime lia-message-edited-on lia-component-common-widget-date')
+            for span in e.find_all('span', class_='message_post_text'):
+                if span.text != 'by':
+                    editdate = span.text
+        except:
+            editdate = ''
+
+        #Try to parse an editor name if available
+        try:
+            edited_by = dateheader.find('span', class_='username_details').find('span', class_='UserName lia-user-name lia-user-rank-Power-Member lia-component-common-widget-user-name')\
+            .find('a').find('span').text
+        except:
+            edited_by = ''
+        
+        #Try to post an editor URL
+        try:
+            box = dateheader.find('span', class_='username_details').find('span', class_='UserName lia-user-name lia-user-rank-Power-Member lia-component-common-widget-user-name')\
+            .find('a')
+            edited_url = 'https://community.upwork.com/' 
+            edited_url += str(box).split('href="')[1].split('"')[0]
+        except Exception as e:
+            edited_url = ''
+
+        #If we have editor info, generate MD5 hash ID for them
+        if edited_by != '' and edited_url != '':
+            editor_id = hashlib.md5((edited_by + edited_url).encode('utf-8')).hexdigest()[:16]
+        else:
+            editor_id = ''
+
+        #Get post index and add to checked indices
+        postdate = str(timestamp)
+        index = msg.find('span', class_='MessagesPositionInThread').find('a').text.replace('\n', '')
+
+        #Parse message content
+        body = msg.find('div', class_='lia-message-body-content').find_all(['p', 'ul'])
+        post = ''
+        for p in body:
+            if p.text == '&nbsp':
+                pass
+            if p.name == 'ul':
+                li = p.find_all('li')
+                for item in li:
+                    post += item.text
+            else:
+                post += ('' + p.text + '').replace('\u00a0', '').replace('\n', '')
+
+        #Generate author user object
+        u = User(name, member_since, _url, rank)
+
+        #Generate post object
+        p = Post(postdate, editdate, post, u, url, pagenum, index, url.split('/t5/')[1].split('/')[0])
+
+        return p, editor_id, edited_url, edited_by
 
     def list_diff(self, li1, li2):
         """

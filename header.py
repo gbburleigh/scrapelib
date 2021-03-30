@@ -335,6 +335,12 @@ class PostList:
             self.posts[p.id] = p
         self.post_count = d['post_count']
 
+    def sort(self):
+        """
+        Sorts postlist in place by post index in reverse order.
+        """
+        self.postlist.sort(key=lambda x: x.index, reverse=True)
+
     def diff(self, other):
         """
         Returns the list of posts in the other postlist that aren't present in the current list.
@@ -374,6 +380,7 @@ class PostList:
             self.posts[post.author.id] = {post.id: post}
         self.postlist.append(post)
         self.post_count += 1
+        self.sort()
 
     def merge(self, src):
         """

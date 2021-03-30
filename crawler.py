@@ -93,13 +93,13 @@ class Crawler:
                         threads.append(url)
             
             #Go through remaining threads and add parsed objects to category object
-            if len(threads) > 0 and self.max_page_scroll > 1:
+            if len(threads) > 0:
                 with Bar(f'Finishing remaining threads in category {category.name}', max=len(threads)) as bar:
                     for url in threads:
                         self.driver.get(url)
                         time.sleep(1)
                         try:
-                            thread = self.scraper.make_soup(self.driver.page_source, url, category.name)
+                            thread = self.scraper.parse(self.driver.page_source, url, category.name)
                         #Attribute error indicates a thread isn't accessible since we try to parse
                         #normal data from an Access Denied page.
                         except AttributeError:
@@ -138,45 +138,40 @@ class Crawler:
         elif tar.split('/t5/')[1].split('/')[0] == 'Announcements':
             bar_count += 2
 
-        try:
-            #Progress bar context manager
-            with Bar(f"Parsing {tar.split('/t5/')[1].split('/')[0]}", max=bar_count) as bar:
-                #Iterate through each page in range
-                for currentpage in range(1, self.max_page_scroll + 1):
-                    #Get correct page
-                    if currentpage == 1:
-                        self.driver.get(tar)
-                    else:
-                        self.driver.get(self.generate_next(tar, currentpage))
+        #Progress bar context manager
+        with Bar(f"Parsing {tar.split('/t5/')[1].split('/')[0]}", max=bar_count) as bar:
+            #Iterate through each page in range
+            for currentpage in range(1, self.max_page_scroll + 1):
+                #Get correct page
+                if currentpage == 1:
+                    self.driver.get(tar)
+                else:
+                    self.driver.get(self.generate_next(tar, currentpage))
 
-                    #Update scraper pagenumber
-                    self.scraper.update_page(currentpage)
+                #Update scraper pagenumber
+                self.scraper.update_page(currentpage)
 
-                    #Fetch all URLs on category page
-                    urls = self.get_links("//a[@class='page-link lia-link-navigation lia-custom-event']")
-                    
-                    #Iterate through URLs we found
-                    for url in urls:
-                        if url in self.skipped:
-                            continue
-                        self.driver.get(url)
-                        thread = None
-                        #Attempt to parse thread page
-                        try:
-                            thread = self.scraper.make_soup(self.driver.page_source, url, tar.split('/t5/')[1].split('/')[0])
-                        #This indicates a thread has been made inaccessible, add it to deleted threads
-                        except AttributeError:
-                            if tar.split('/t5/')[1].split('/')[0] in self.db.stats.deleted_threads.keys():
-                                self.db.stats.deleted_threads[tar.split('/t5/')[1].split('/')[0]].append(url)
-                            else:
-                                self.db.stats.deleted_threads[tar.split('/t5/')[1].split('/')[0]] = [url]
-                        except Exception as e:
-                            print(e)
-                        if thread is not None and thread.post_count != 0:
-                            threadli.append(thread)
-                        bar.next()
-        except Exception as e:
-            print(e)
+                #Fetch all URLs on category page
+                urls = self.get_links("//a[@class='page-link lia-link-navigation lia-custom-event']")
+                
+                #Iterate through URLs we found
+                for url in urls:
+                    if url in self.skipped:
+                        continue
+                    self.driver.get(url)
+                    thread = None
+                    #Attempt to parse thread page
+                    try:
+                        thread = self.scraper.parse(self.driver.page_source, url, tar.split('/t5/')[1].split('/')[0])
+                    #This indicates a thread has been made inaccessible, add it to deleted threads
+                    except AttributeError:
+                        if tar.split('/t5/')[1].split('/')[0] in self.db.stats.deleted_threads.keys():
+                            self.db.stats.deleted_threads[tar.split('/t5/')[1].split('/')[0]].append(url)
+                        else:
+                            self.db.stats.deleted_threads[tar.split('/t5/')[1].split('/')[0]] = [url]
+                    if thread is not None and thread.post_count != 0:
+                        threadli.append(thread)
+                    bar.next()
 
         #Create and return category object
         return Category(threadli, tar.split('/t5/')[1].split('/')[0])
