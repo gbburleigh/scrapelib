@@ -274,7 +274,7 @@ class ThreadScraper:
             try:
                 assert(all(elem in checked_indices for elem in old_indices))
             except:
-                print(self.list_diff(checked_indices, old_indices))
+                self.db.stats.diffs[url] = self.list_diff(checked_indices, old_indices)
         
         #Generate thread object and return
         t = Thread(postlist, url, author, url.split('/t5/')[1].split('/')[0], \

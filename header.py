@@ -787,6 +787,7 @@ class StatTracker:
         self.max_time = {}
         self.no_content = {}
         self.under_five = {}
+        self.diffs = {}
         self.deleted_threads = {}
         self.total_posts = 0
         if src is not None and type(src) is dict:
@@ -1454,7 +1455,7 @@ class SiteDB:
                 s = 0
                 for url, count in self.stats.no_content[category].items():
                     s += count
-                body += (f'{s} posts found without content in category {category}')
+                body += (f'{s} posts found without content in category {category}\n')
                 sum_ += s
             if category in self.stats.deleted_threads.keys():
                 print(f'Got {len(self.stats.deleted_threads[category])} threads that were inaccessible\n')
@@ -1463,11 +1464,11 @@ class SiteDB:
                         thread = self.pred[category].threads[url]
                         body += (f'Thread {url} no longer found and we have cached data for it\n')
                         for post in thread.postlist.postlist:
-                            body += (post.enumerate_data(return_str=True))
+                            body += (post.enumerate_data(return_str=True)) + '\n'
                         #print(self.pred[category].threads[url].__str__())
                     except:
                         body += (f'Thread {url} no longer found and we do not have cached data for it\n')
-        body +=(f'Total of {sum_} posts found without content')
+        body +=(f'Total of {sum_} posts found without content\n')
 
         for name, category in self.cache.items():
             for thread in category.threadlist:
@@ -1477,8 +1478,10 @@ class SiteDB:
                             if thread.url in self.pred[category.name].threads.keys():
                                 if post.id in self.pred[category.name].threads[thread.url].posts:
                                     if self.pred[category.name].threads[thread.url].posts[post.id].message != '':
-                                        body += self.pred[category.name].threads[thread.url].posts[post.id].enumerate_data(return_str=True)
+                                        body += self.pred[category.name].threads[thread.url].posts[post.id].enumerate_data(return_str=True) + '\n'
 
+        for url, diff in self.stats.diffs.items():
+            body += (f'Got diff {diff} for url {url}\n')
         return body
 
     def save_log(self):
