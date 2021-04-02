@@ -144,6 +144,16 @@ class ThreadScraper:
                 soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
 
             msgli, count = self.get_message_divs(soup, categ, url)
+            try:
+                assert(count > 0)
+            except:
+                print(url, pagenum)
+            if pagenum != start:
+                try:
+                    assert(count == 10)
+                except:
+                    print(url, pagenum)
+                
             #print(f'Got {count} posts on page {pagenum} of {url}')
             expired = False
             idx = 0
@@ -369,6 +379,11 @@ class ThreadScraper:
         except:
             readonly = None
 
+        try:
+            readonlyreply = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-reply lia-list-row-thread-readonly')
+        except:
+            readonlyreply = None
+
         #We have messages with no content, handle them in our statstracker in sitedb
         if no_content is not None:
             if categ in self.db.stats.no_content.keys():
@@ -381,7 +396,7 @@ class ThreadScraper:
                 self.db.stats.no_content[categ] = {url: len(no_content)}
 
         #Create list to iterate through
-        msgs = op + unread + solved + no_content + resolved + solution + readonly
+        msgs = op + unread + solved + no_content + resolved + solution + readonly + readonlyreply
 
         msgli = []
         for msg in msgs:

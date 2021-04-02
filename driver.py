@@ -151,7 +151,8 @@ if __name__ == "__main__":
     try:
         d.scan()
     except KeyboardInterrupt:
-        d.close()
-        os.system('deactivate')
+        #d.close()
+        #os.system('deactivate')
+        pass
     d.close()
 
