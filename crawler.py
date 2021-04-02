@@ -171,6 +171,8 @@ class Crawler:
                             self.db.stats.deleted_threads[tar.split('/t5/')[1].split('/')[0]] = [url]
                     if thread is not None and thread.post_count != 0:
                         threadli.append(thread)
+                    else:
+                        print(thread.__str__())
                     bar.next()
 
         #Create and return category object
