@@ -38,7 +38,7 @@ class Crawler:
 
         #Skipped URLs
         self.skipped = ['https://community.upwork.com/t5/Announcements/Welcome-to-the-Upwork-Community/td-p/1',\
-                        'https://community.upwork.com/t5/Announcements/Upwork-Community-Guidelines']
+                        'https://community.upwork.com/t5/Announcements/Upwork-Community-Guidelines/td-p/3']
         
         #Generate scraper object
         if debug is True:
@@ -172,7 +172,7 @@ class Crawler:
                     if thread is not None and thread.post_count != 0:
                         threadli.append(thread)
                     else:
-                        print(thread.__str__())
+                        print(url)
                     bar.next()
 
         #Create and return category object

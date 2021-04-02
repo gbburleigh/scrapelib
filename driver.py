@@ -127,6 +127,7 @@ class Driver:
         time.sleep(2)
 
     def scan(self):
+        from urllib3.exceptions import MaxRetryError, NewConnectionError
         """
         Main wrapper for running entire scan. Handles restarting and running through methods defined above.
         Lower level exceptions aside from major crashes are handled at object level.
@@ -138,9 +139,10 @@ class Driver:
                 #Try to run
                 self.run()
                 break
-            except DBError:
+            except DBError or MaxRetryError or NewConnectionError:
                 #Otherwise restart
                 self.restart()
+                time.sleep(10)
 
 if __name__ == "__main__":
     now = datetime.now()

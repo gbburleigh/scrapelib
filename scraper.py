@@ -130,19 +130,24 @@ class ThreadScraper:
                 except:
                     pass
 
+        queue = []
         #Iterate through thread pages from last page to limit defined above
-        for pagenum in range(start - 1, end, -1):
+        for pagenum in range(start, end-1, -1):
             #If we're past the first page, we want to generate the next page URL and validate it
-            if pagenum > 1 and validators.url(self.generate_next(url, pagenum)):
-                #Get the page and recreate the parsing object
-                self.driver.get(self.generate_next(url, pagenum))
+            if pagenum > 1:
+                if validators.url(self.generate_next(url, pagenum)):
+                    #Get the page and recreate the parsing object
+                    self.driver.get(self.generate_next(url, pagenum))
+                    soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
+            else:
+                self.driver.get(url)
                 soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
 
-            msgli = self.get_message_divs(soup, categ, url)
+            msgli, count = self.get_message_divs(soup, categ, url)
+            #print(f'Got {count} posts on page {pagenum} of {url}')
             expired = False
             idx = 0
 
-            queue = []
             #Iterate through list in reverse order
             for msg in msgli:
                 if msg is None:
@@ -201,27 +206,27 @@ class ThreadScraper:
             if expired is True:
                 break
         
-        if len(queue) > 0:
-            #For each item queued
-            for item in queue:
-                #Get editor profile
-                self.driver.get(item[1])
+            if len(queue) > 0:
+                #For each item queued
+                for item in queue:
+                    #Get editor profile
+                    self.driver.get(item[1])
 
-                #Parse out relevant user info
-                soup = BeautifulSoup(self.driver.page_source, 'lxml')
-                data_container = soup.find('div', class_='userdata-combine-container')
-                joininfo = data_container.find_all('span', class_='member-info')
-                for entry in joininfo:
-                    if entry.text != 'Member since:':
-                        joindate = entry.text
-                rank_container = data_container.find('div', class_='user-userRank')
-                rank = rank_container.text.strip()
+                    #Parse out relevant user info
+                    soup = BeautifulSoup(self.driver.page_source, 'lxml')
+                    data_container = soup.find('div', class_='userdata-combine-container')
+                    joininfo = data_container.find_all('span', class_='member-info')
+                    for entry in joininfo:
+                        if entry.text != 'Member since:':
+                            joindate = entry.text
+                    rank_container = data_container.find('div', class_='user-userRank')
+                    rank = rank_container.text.strip()
 
-                #Create user object and handle it, then add post
-                u = User(item[2], joindate, item[1], rank)
-                userlist.handle_user(u)
-                item[0].add_edited(u)
-                postlist.add(item[0])
+                    #Create user object and handle it, then add post
+                    u = User(item[2], joindate, item[1], rank)
+                    userlist.handle_user(u)
+                    item[0].add_edited(u)
+                    postlist.add(item[0])
 
         missing = []
         #Debug helper for checking if any posts were missed in last scan
@@ -359,6 +364,11 @@ class ThreadScraper:
         except:
             no_content = None
 
+        try:
+            readonly = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-topic lia-list-row-thread-readonly')
+        except:
+            readonly = None
+
         #We have messages with no content, handle them in our statstracker in sitedb
         if no_content is not None:
             if categ in self.db.stats.no_content.keys():
@@ -371,13 +381,13 @@ class ThreadScraper:
                 self.db.stats.no_content[categ] = {url: len(no_content)}
 
         #Create list to iterate through
-        msgs = op + unread + solved + no_content + resolved + solution
+        msgs = op + unread + solved + no_content + resolved + solution + readonly
 
         msgli = []
         for msg in msgs:
             msgli.append(msg)
 
-        return reversed(msgli)
+        return reversed(msgli), len(msgli)
 
     def parse_message_div(self, msg, url, pagenum):
         """
