@@ -131,7 +131,7 @@ class ThreadScraper:
                     pass
 
         #Iterate through thread pages from last page to limit defined above
-        for pagenum in range(start, end - 1, -1):
+        for pagenum in range(start - 1, end, -1):
             #If we're past the first page, we want to generate the next page URL and validate it
             if pagenum > 1 and validators.url(self.generate_next(url, pagenum)):
                 #Get the page and recreate the parsing object
@@ -275,6 +275,7 @@ class ThreadScraper:
                 assert(all(elem in checked_indices for elem in old_indices))
             except:
                 self.db.stats.diffs[url] = self.list_diff(checked_indices, old_indices)
+                print(f'Got diff {diff} on url {url}')
         
         #Generate thread object and return
         t = Thread(postlist, url, author, url.split('/t5/')[1].split('/')[0], \
