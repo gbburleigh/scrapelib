@@ -774,6 +774,7 @@ class StatTracker:
     under_five(dict): maps category names to lists of posts edited in under five minutes
     deleted_threads(dict): dict mapping category names to lists of inaccessible urls
     total_posts(int): total number of posts seen
+    failures(list(str)): list of urls that we failed to fetch properly, for debugging
     """
     def __init__(self, src=None):
         self.user_deletions = {}
@@ -790,6 +791,7 @@ class StatTracker:
         self.diffs = {}
         self.deleted_threads = {}
         self.total_posts = 0
+        self.failures = []
         if src is not None and type(src) is dict:
             self.deletions = src['deletions']
             self.modifications = src['modifications']
@@ -1482,6 +1484,10 @@ class SiteDB:
 
         for url, diff in self.stats.diffs.items():
             body += (f'Got diff {diff} for url {url}\n')
+
+        for url in self.stats.failures:
+            body += f'Failed to fetch url {url} properly\n'
+            
         return body
 
     def save_log(self):

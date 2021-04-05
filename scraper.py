@@ -384,6 +384,16 @@ class ThreadScraper:
         except:
             readonlyreply = None
 
+        try:
+            solvedreadonly = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-reply lia-list-row-thread-solved lia-list-row-thread-readonly')
+        except:
+            solvedreadonly = None
+
+        try:
+            other = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-reply lia-message-authored-by-you')
+        except:
+            other = None
+
         #We have messages with no content, handle them in our statstracker in sitedb
         if no_content is not None:
             if categ in self.db.stats.no_content.keys():
@@ -396,7 +406,7 @@ class ThreadScraper:
                 self.db.stats.no_content[categ] = {url: len(no_content)}
 
         #Create list to iterate through
-        msgs = op + unread + solved + no_content + resolved + solution + readonly + readonlyreply
+        msgs = op + unread + solved + no_content + resolved + solution + readonly + readonlyreply + solvedreadonly + other
 
         msgli = []
         for msg in msgs:

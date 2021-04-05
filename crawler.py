@@ -65,6 +65,7 @@ class Crawler:
         #Set DB scan start
         now = datetime.now()
         self.db.set_start(now)
+        failures = []
 
         #Iterate through targets
         for target in self.targets:
@@ -73,8 +74,14 @@ class Crawler:
                 self.regenerate_driver()
                 time.sleep(2)
 
+            time.sleep(2)
             #Fetch target
-            self.driver.get(target)
+            try:
+                self.driver.get(target)
+            except ConnectionRefusedError:
+                raise DBError
+
+            time.sleep(2)
 
             #Generate a category object from target URL
             category = self.parse_page(target)
@@ -111,7 +118,9 @@ class Crawler:
                         bar.next()
             iter_ += 1
             self.db.add(category)
-
+        for elem in failures:
+            if elem not in self.db.stats.failures:
+                self.db.stats.failures.append(elem)
         return self.db
 
     def parse_page(self, tar):
