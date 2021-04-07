@@ -78,7 +78,7 @@ class Crawler:
             #Fetch target
             try:
                 self.driver.get(target)
-            except ConnectionRefusedError:
+            except ConnectionRefusedError or Exception:
                 raise DBError
 
             time.sleep(2)
@@ -103,7 +103,10 @@ class Crawler:
             if len(threads) > 0:
                 with Bar(f'Finishing remaining threads in category {category.name}', max=len(threads)) as bar:
                     for url in threads:
-                        self.driver.get(url)
+                        try:
+                            self.driver.get(url)
+                        except ConnectionRefusedError or Exception:
+                            raise DBError
                         time.sleep(1)
                         try:
                             thread = self.scraper.parse(self.driver.page_source, url, category.name)
@@ -131,7 +134,10 @@ class Crawler:
         """
 
         #Get the target page
-        self.driver.get(tar)
+        try:
+            self.driver.get(tar)
+        except ConnectionRefusedError or Exception:
+            raise DBError
 
         #If we're scanning entire website, reset max page scroll
         if '-full' in sys.argv:
@@ -152,10 +158,13 @@ class Crawler:
             #Iterate through each page in range
             for currentpage in range(1, self.max_page_scroll + 1):
                 #Get correct page
-                if currentpage == 1:
-                    self.driver.get(tar)
-                else:
-                    self.driver.get(self.generate_next(tar, currentpage))
+                try:
+                    if currentpage == 1:
+                        self.driver.get(tar)
+                    else:
+                        self.driver.get(self.generate_next(tar, currentpage))
+                except ConnectionRefusedError or Exception:
+                    raise DBError
 
                 #Update scraper pagenumber
                 self.scraper.update_page(currentpage)
@@ -167,7 +176,10 @@ class Crawler:
                 for url in urls:
                     if url in self.skipped:
                         continue
-                    self.driver.get(url)
+                    try:
+                        self.driver.get(url)
+                    except ConnectionRefusedError or Exception:
+                        raise DBError
                     thread = None
                     #Attempt to parse thread page
                     try:

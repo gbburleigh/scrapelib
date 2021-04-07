@@ -137,10 +137,17 @@ class ThreadScraper:
             if pagenum > 1:
                 if validators.url(self.generate_next(url, pagenum)):
                     #Get the page and recreate the parsing object
-                    self.driver.get(self.generate_next(url, pagenum))
+                    try:
+                        self.driver.get(self.generate_next(url, pagenum))
+                    except ConnectionRefusedError or Exception:
+                        raise DBError
                     soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
             else:
-                self.driver.get(url)
+                try:
+                    self.driver.get(url)
+                except ConnectionRefusedError or Exception:
+                    raise DBError
+
                 soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
 
             msgli, count = self.get_message_divs(soup, categ, url)
@@ -224,7 +231,10 @@ class ThreadScraper:
                 #For each item queued
                 for item in queue:
                     #Get editor profile
-                    self.driver.get(item[1])
+                    try:
+                        self.driver.get(item[1])
+                    except ConnectionRefusedError or Exception:
+                        raise DBError
 
                     #Parse out relevant user info
                     soup = BeautifulSoup(self.driver.page_source, 'lxml')
@@ -253,7 +263,11 @@ class ThreadScraper:
         missingqueue = []
         for item in missing:
             missing_bool = False
-            self.driver.get(self.generate_next(url, item[1]))
+            try:
+                self.driver.get(self.generate_next(url, item[1]))
+            except ConnectionRefusedError or Exception:
+                raise DBError
+
             soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
             msgli = self.get_message_divs(soup, categ, url)
             for msg in msgli:
@@ -273,7 +287,10 @@ class ThreadScraper:
 
         for item in missingqueue:
             #Get editor profile
-            self.driver.get(item[1])
+            try:
+                self.driver.get(item[1])
+            except ConnectionRefusedError or Exception:
+                raise DBError
 
             #Parse out relevant user info
             soup = BeautifulSoup(self.driver.page_source, 'lxml')
