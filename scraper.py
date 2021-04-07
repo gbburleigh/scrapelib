@@ -281,8 +281,9 @@ class ThreadScraper:
                             p.add_edited(p.author)
                         if not missing_bool:
                             postlist.add(p)
-                except Exception as e:
-                    print(f'Something went wrong while finding missing posts\n {e}')
+                except:
+                    import traceback
+                    print(f'Something went wrong while finding missing posts\n {traceback.print_exception()}')
                     raise DBError
 
         for item in missingqueue:
