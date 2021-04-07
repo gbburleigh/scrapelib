@@ -162,7 +162,11 @@ class ThreadScraper:
             for msg in msgli:
                 if msg is None:
                     continue
-                p, editor_id, edited_url, edited_by = self.parse_message_div(msg, url, pagenum)
+                try:
+                    p, editor_id, edited_url, edited_by = self.parse_message_div(msg, url, pagenum)
+                except Exception as e:
+                    print(f'Something went wrong while parsing a message div \n {e}')
+                    raise DBError
                 checked_indices.append(p.index)
                 userlist.handle_user(p.author)
                 in_queue = False
@@ -253,15 +257,19 @@ class ThreadScraper:
             soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
             msgli = self.get_message_divs(soup, categ, url)
             for msg in msgli:
-                p, editor_id, edited_url, edited_by = self.parse_message_div(msg, url, item[1])
-                if p.index == item[0] or p.index not in checked_indices:
-                    if editor_id != '' and edited_by != p.author.name:
-                        missingqueue.append((p, edited_url, edited_by))
-                        missing_bool = True
-                    elif editor_id != '' and edited_by == p.author.name:
-                        p.add_edited(p.author)
-                    if not missing_bool:
-                        postlist.add(p)
+                try:
+                    p, editor_id, edited_url, edited_by = self.parse_message_div(msg, url, item[1])
+                    if p.index == item[0] or p.index not in checked_indices:
+                        if editor_id != '' and edited_by != p.author.name:
+                            missingqueue.append((p, edited_url, edited_by))
+                            missing_bool = True
+                        elif editor_id != '' and edited_by == p.author.name:
+                            p.add_edited(p.author)
+                        if not missing_bool:
+                            postlist.add(p)
+                except Exception as e:
+                    print(f'Something went wrong while finding missing posts\n {e}')
+                    raise DBError
 
         for item in missingqueue:
             #Get editor profile
