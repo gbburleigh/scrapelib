@@ -118,6 +118,7 @@ class Driver:
         """
 
         #Kill processes
+        print('Restarting scan...... \n')
         self.kill()
 
         #Delete crawler
@@ -140,8 +141,9 @@ class Driver:
                 #Try to run
                 self.run()
                 break
-            except DBError or MaxRetryError or NewConnectionError or ConnectionRefusedError:
+            except DBError or MaxRetryError or NewConnectionError or ConnectionRefusedError as e:
                 #Otherwise restart
+                print(e)
                 self.restart()
                 time.sleep(10)
 

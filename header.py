@@ -4,6 +4,9 @@ from datetime import datetime
 class DBError(Exception):
     pass
 
+class ConnError(Exception):
+    pass
+
 class User:
     """
     Main wrapper object for user info. Encapsulates ID generation via available info
@@ -1487,7 +1490,7 @@ class SiteDB:
 
         for url in self.stats.failures:
             body += f'Failed to fetch url {url} properly\n'
-            
+
         return body
 
     def save_log(self):

@@ -1,5 +1,5 @@
 import sys, os, time, json, hashlib, random
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, element
 from datetime import datetime
 from header import *
 import validators
@@ -140,13 +140,13 @@ class ThreadScraper:
                     try:
                         self.driver.get(self.generate_next(url, pagenum))
                     except ConnectionRefusedError or Exception:
-                        raise DBError
+                        pass
                     soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
             else:
                 try:
                     self.driver.get(url)
                 except ConnectionRefusedError or Exception:
-                    raise DBError
+                    pass
 
                 soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
 
@@ -234,7 +234,7 @@ class ThreadScraper:
                     try:
                         self.driver.get(item[1])
                     except ConnectionRefusedError or Exception:
-                        raise DBError
+                        pass
 
                     #Parse out relevant user info
                     soup = BeautifulSoup(self.driver.page_source, 'lxml')
@@ -266,10 +266,10 @@ class ThreadScraper:
             try:
                 self.driver.get(self.generate_next(url, item[1]))
             except ConnectionRefusedError or Exception:
-                raise DBError
+                pass
 
             soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
-            msgli = self.get_message_divs(soup, categ, url)
+            msgli, _ = self.get_message_divs(soup, categ, url)
             for msg in msgli:
                 try:
                     p, editor_id, edited_url, edited_by = self.parse_message_div(msg, url, item[1])
@@ -283,15 +283,15 @@ class ThreadScraper:
                             postlist.add(p)
                 except:
                     import traceback
-                    print(f'Something went wrong while finding missing posts\n {traceback.print_exception()}')
-                    raise DBError
+                    print(f'Something went wrong while finding missing posts\n {traceback.print_exc()}')
+                    pass
 
         for item in missingqueue:
             #Get editor profile
             try:
                 self.driver.get(item[1])
             except ConnectionRefusedError or Exception:
-                raise DBError
+                pass
 
             #Parse out relevant user info
             soup = BeautifulSoup(self.driver.page_source, 'lxml')
@@ -453,6 +453,9 @@ class ThreadScraper:
         """
         #Set default edit status
         edit_status = 'Unedited'
+
+        if type(msg) is not element.Tag:
+            print(f'Msg obj: {msg}')
 
         #Get profile URL
         _url = 'https://community.upwork.com' + \

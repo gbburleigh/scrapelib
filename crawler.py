@@ -71,6 +71,7 @@ class Crawler:
         for target in self.targets:
             if iter_ > 0:
                 #Regenerate driver if necessary
+                print('Regenerating driver...... \n')
                 self.regenerate_driver()
                 time.sleep(2)
 
@@ -79,7 +80,7 @@ class Crawler:
             try:
                 self.driver.get(target)
             except ConnectionRefusedError or Exception:
-                raise DBError
+                pass
 
             time.sleep(2)
 
@@ -106,7 +107,7 @@ class Crawler:
                         try:
                             self.driver.get(url)
                         except ConnectionRefusedError or Exception:
-                            raise DBError
+                            pass
                         time.sleep(1)
                         try:
                             thread = self.scraper.parse(self.driver.page_source, url, category.name)
@@ -137,7 +138,7 @@ class Crawler:
         try:
             self.driver.get(tar)
         except ConnectionRefusedError or Exception:
-            raise DBError
+            pass
 
         #If we're scanning entire website, reset max page scroll
         if '-full' in sys.argv:
@@ -164,7 +165,7 @@ class Crawler:
                     else:
                         self.driver.get(self.generate_next(tar, currentpage))
                 except ConnectionRefusedError or Exception:
-                    raise DBError
+                    pass
 
                 #Update scraper pagenumber
                 self.scraper.update_page(currentpage)
@@ -179,7 +180,7 @@ class Crawler:
                     try:
                         self.driver.get(url)
                     except ConnectionRefusedError or Exception:
-                        raise DBError
+                        pass
                     thread = None
                     #Attempt to parse thread page
                     try:
@@ -217,6 +218,7 @@ class Crawler:
 
         #Generate webdriver object depending on argument given at runtime. Always runs in headless
         #mode with disabled GPU
+        self.driver.quit()
         if '-f' in sys.argv:
             print('Regenerating FireFox driver...')
             from selenium.webdriver.firefox.options import Options
