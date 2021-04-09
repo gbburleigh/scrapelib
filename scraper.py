@@ -2,6 +2,7 @@ import sys, os, time, json, hashlib, random
 from bs4 import BeautifulSoup, element
 from datetime import datetime
 from header import *
+import requests
 import validators
 
 class ThreadScraper:
@@ -133,22 +134,25 @@ class ThreadScraper:
         queue = []
         #Iterate through thread pages from last page to limit defined above
         for pagenum in range(start, end-1, -1):
+            print(f'Currently on page {pagenum} of {url}')
             #If we're past the first page, we want to generate the next page URL and validate it
             if pagenum > 1:
                 if validators.url(self.generate_next(url, pagenum)):
                     #Get the page and recreate the parsing object
-                    try:
+                    if '-p' not in sys.argv:
                         self.driver.get(self.generate_next(url, pagenum))
-                    except ConnectionRefusedError or Exception:
-                        pass
-                    soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
+                        soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
+                    else:
+                        r = requests.get(self.generate_next(url, pagenum))
+                        soup = BeautifulSoup(r.text, 'lxml')
             else:
-                try:
-                    self.driver.get(url)
-                except ConnectionRefusedError or Exception:
-                    pass
-
-                soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
+                    if '-p' not in sys.argv:
+                        self.driver.get(url)
+                        soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
+                    else:
+                        r = requests.get(url)
+                        soup = BeautifulSoup(r.text, 'lxml')
+            time.sleep(2)
 
             msgli, count = self.get_message_divs(soup, categ, url)
             try:
@@ -172,8 +176,8 @@ class ThreadScraper:
                 try:
                     p, editor_id, edited_url, edited_by = self.parse_message_div(msg, url, pagenum)
                 except Exception as e:
-                    print(f'Something went wrong while parsing a message div \n {e}')
-                    raise DBError
+                    import traceback
+                    print(f'Something went wrong while parsing a message div \n {url}, {e}')
                 checked_indices.append(p.index)
                 userlist.handle_user(p.author)
                 in_queue = False
@@ -231,13 +235,16 @@ class ThreadScraper:
                 #For each item queued
                 for item in queue:
                     #Get editor profile
-                    try:
+                    if '-p' not in sys.argv:
                         self.driver.get(item[1])
-                    except ConnectionRefusedError or Exception:
-                        pass
+                        soup = BeautifulSoup(self.driver.page_source, 'lxml')
+                    else:
+                        r = requests.get(item[1])
+                        soup = BeautifulSoup(r.text, 'lxml')
+                    time.sleep(2)
 
                     #Parse out relevant user info
-                    soup = BeautifulSoup(self.driver.page_source, 'lxml')
+                    
                     data_container = soup.find('div', class_='userdata-combine-container')
                     joininfo = data_container.find_all('span', class_='member-info')
                     for entry in joininfo:
@@ -263,16 +270,18 @@ class ThreadScraper:
         missingqueue = []
         for item in missing:
             missing_bool = False
-            try:
+            if '-p' not in sys.argv:
                 self.driver.get(self.generate_next(url, item[1]))
-            except ConnectionRefusedError or Exception:
-                pass
-
-            soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
-            msgli, _ = self.get_message_divs(soup, categ, url)
-            for msg in msgli:
+                soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
+            else:
+                r = requests.get(self.generate_next(url, item[1]))
+                soup = BeautifulSoup(r.text, 'lxml')
+            time.sleep(2)
+            newli, _ = self.get_message_divs(soup, categ, url)
+            for msg in newli:
                 try:
-                    p, editor_id, edited_url, edited_by = self.parse_message_div(msg, url, item[1])
+                    if msg is not None:
+                        p, editor_id, edited_url, edited_by = self.parse_message_div(msg, url, item[1])
                     if p.index == item[0] or p.index not in checked_indices:
                         if editor_id != '' and edited_by != p.author.name:
                             missingqueue.append((p, edited_url, edited_by))
@@ -281,20 +290,23 @@ class ThreadScraper:
                             p.add_edited(p.author)
                         if not missing_bool:
                             postlist.add(p)
-                except:
+                except Exception as e:
                     import traceback
-                    print(f'Something went wrong while finding missing posts\n {traceback.print_exc()}')
+                    print(f'Something went wrong while finding missing posts\n {e}')
+                    print(url)
                     pass
 
         for item in missingqueue:
             #Get editor profile
-            try:
+            if '-p' not in sys.argv:
                 self.driver.get(item[1])
-            except ConnectionRefusedError or Exception:
-                pass
-
+                soup = BeautifulSoup(self.driver.page_source, 'lxml')
+            else:
+                r = requests.get(item[1])
+                soup = BeautifulSoup(r.text, 'lxml')
+            time.sleep(2)
             #Parse out relevant user info
-            soup = BeautifulSoup(self.driver.page_source, 'lxml')
+            
             data_container = soup.find('div', class_='userdata-combine-container')
             joininfo = data_container.find_all('span', class_='member-info')
             for entry in joininfo:
@@ -407,12 +419,12 @@ class ThreadScraper:
 
         try:
             readonlyreply = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-reply lia-list-row-thread-readonly')
-        except:
+        except:                                     
             readonlyreply = None
 
         try:
             solvedreadonly = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-reply lia-list-row-thread-solved lia-list-row-thread-readonly')
-        except:
+        except: 
             solvedreadonly = None
 
         try:

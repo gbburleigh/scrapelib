@@ -4,9 +4,10 @@ from selenium.common.exceptions import StaleElementReferenceException
 from selenium.common.exceptions import InvalidSessionIdException
 from header import *
 from datetime import datetime
+from bs4 import BeautifulSoup, element
 from selenium import webdriver
 from progress.bar import Bar
-from progress.spinner import Spinner
+import requests
 
 class Crawler:
     """
@@ -71,16 +72,10 @@ class Crawler:
         for target in self.targets:
             if iter_ > 0:
                 #Regenerate driver if necessary
-                print('Regenerating driver...... \n')
-                self.regenerate_driver()
-                time.sleep(2)
-
-            time.sleep(2)
-            #Fetch target
-            try:
-                self.driver.get(target)
-            except ConnectionRefusedError or Exception:
-                pass
+                if '-p' not in sys.argv:
+                    print('Regenerating driver...... \n')
+                    self.regenerate_driver()
+                    time.sleep(2)
 
             time.sleep(2)
 
@@ -104,20 +99,29 @@ class Crawler:
             if len(threads) > 0:
                 with Bar(f'Finishing remaining threads in category {category.name}', max=len(threads)) as bar:
                     for url in threads:
-                        try:
+                        thread = None
+                        if '-p' not in sys.argv:
                             self.driver.get(url)
-                        except ConnectionRefusedError or Exception:
-                            pass
-                        time.sleep(1)
-                        try:
-                            thread = self.scraper.parse(self.driver.page_source, url, category.name)
-                        #Attribute error indicates a thread isn't accessible since we try to parse
-                        #normal data from an Access Denied page.
-                        except AttributeError:
-                            if category.name in self.db.stats.deleted_threads.keys():
-                                self.db.stats.deleted_threads[category.name].append(url)
-                            else:
-                                self.db.stats.deleted_threads[category.name] = [url]
+                            #Attempt to parse thread page
+                            try:
+                                thread = self.scraper.parse(self.driver.page_source, url, target.split('/t5/')[1].split('/')[0])
+                            #This indicates a thread has been made inaccessible, add it to deleted threads
+                            except AttributeError:
+                                if target.split('/t5/')[1].split('/')[0] in self.db.stats.deleted_threads.keys():
+                                    self.db.stats.deleted_threads[target.split('/t5/')[1].split('/')[0]].append(url)
+                                else:
+                                    self.db.stats.deleted_threads[target.split('/t5/')[1].split('/')[0]] = [url]
+                        else:
+                            r = requests.get(url)
+                            try:
+                                thread = self.scraper.parse(r.text, url, target.split('/t5/')[1].split('/')[0])
+                            #This indicates a thread has been made inaccessible, add it to deleted threads
+                            except AttributeError:
+                                if target.split('/t5/')[1].split('/')[0] in self.db.stats.deleted_threads.keys():
+                                    self.db.stats.deleted_threads[target.split('/t5/')[1].split('/')[0]].append(url)
+                                else:
+                                    self.db.stats.deleted_threads[target.split('/t5/')[1].split('/')[0]] = [url]
+                        time.sleep(2)
                         category.add(thread)
                         bar.next()
             iter_ += 1
@@ -135,10 +139,7 @@ class Crawler:
         """
 
         #Get the target page
-        try:
-            self.driver.get(tar)
-        except ConnectionRefusedError or Exception:
-            pass
+        #self.driver.get(tar)
 
         #If we're scanning entire website, reset max page scroll
         if '-full' in sys.argv:
@@ -159,40 +160,55 @@ class Crawler:
             #Iterate through each page in range
             for currentpage in range(1, self.max_page_scroll + 1):
                 #Get correct page
-                try:
+                if '-p' not in sys.argv:
                     if currentpage == 1:
                         self.driver.get(tar)
                     else:
                         self.driver.get(self.generate_next(tar, currentpage))
-                except ConnectionRefusedError or Exception:
-                    pass
+                    soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
+                else:
+                    if currentpage == 1:
+                        r = requests.get(tar)
+                    else:
+                        r = requests.get(self.generate_next(tar, currentpage))
+                    soup = BeautifulSoup(r.text, 'lxml')
+                time.sleep(2)
 
                 #Update scraper pagenumber
                 self.scraper.update_page(currentpage)
 
                 #Fetch all URLs on category page
-                urls = self.get_links("//a[@class='page-link lia-link-navigation lia-custom-event']")
-                
+                urls = self.get_links(soup)
                 #Iterate through URLs we found
                 for url in urls:
                     if url in self.skipped:
                         continue
-                    try:
-                        self.driver.get(url)
-                    except ConnectionRefusedError or Exception:
-                        pass
                     thread = None
-                    #Attempt to parse thread page
-                    try:
-                        thread = self.scraper.parse(self.driver.page_source, url, tar.split('/t5/')[1].split('/')[0])
-                    #This indicates a thread has been made inaccessible, add it to deleted threads
-                    except AttributeError:
-                        if tar.split('/t5/')[1].split('/')[0] in self.db.stats.deleted_threads.keys():
-                            self.db.stats.deleted_threads[tar.split('/t5/')[1].split('/')[0]].append(url)
-                        else:
-                            self.db.stats.deleted_threads[tar.split('/t5/')[1].split('/')[0]] = [url]
+                    if '-p' not in sys.argv:
+                        self.driver.get(url)
+                        #Attempt to parse thread page
+                        try:
+                            thread = self.scraper.parse(self.driver.page_source, url, tar.split('/t5/')[1].split('/')[0])
+                        #This indicates a thread has been made inaccessible, add it to deleted threads
+                        except AttributeError:
+                            if tar.split('/t5/')[1].split('/')[0] in self.db.stats.deleted_threads.keys():
+                                self.db.stats.deleted_threads[tar.split('/t5/')[1].split('/')[0]].append(url)
+                            else:
+                                self.db.stats.deleted_threads[tar.split('/t5/')[1].split('/')[0]] = [url]
+                    else:
+                        r = requests.get(url)
+                        try:
+                            thread = self.scraper.parse(r.text, url, tar.split('/t5/')[1].split('/')[0])
+                        #This indicates a thread has been made inaccessible, add it to deleted threads
+                        except AttributeError:
+                            if tar.split('/t5/')[1].split('/')[0] in self.db.stats.deleted_threads.keys():
+                                self.db.stats.deleted_threads[tar.split('/t5/')[1].split('/')[0]].append(url)
+                            else:
+                                self.db.stats.deleted_threads[tar.split('/t5/')[1].split('/')[0]] = [url]
+                    time.sleep(2)
                     if thread is not None and thread.post_count != 0:
                         threadli.append(thread)
+                        print(thread.__str__())
                     bar.next()
 
         #Create and return category object
@@ -218,7 +234,6 @@ class Crawler:
 
         #Generate webdriver object depending on argument given at runtime. Always runs in headless
         #mode with disabled GPU
-        self.driver.quit()
         if '-f' in sys.argv:
             print('Regenerating FireFox driver...')
             from selenium.webdriver.firefox.options import Options
@@ -247,7 +262,7 @@ class Crawler:
             options.add_argument('--disable-gpu')
             self.driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
 
-    def get_links(self, tag):
+    def get_links(self, soup):
         """
         Pull links on category page under given tag. NOTE: This is the only parsing function that
         directly uses selenium rather than BS4, consider fixing.
@@ -259,16 +274,13 @@ class Crawler:
         urls = []
 
         #Parse all available links with tag given as arg
-        for elem in self.driver.find_elements_by_xpath(tag):
-            try:
-                res = str(elem.get_attribute('href'))
-                if res not in hist:
-                    hist.append(res)
-                    urls.append(res)
-                else:
-                    continue
-            except StaleElementReferenceException:
-                pass
+        for elem in soup.find_all('a', class_='page-link lia-link-navigation lia-custom-event', href=True):
+            res = 'https://community.upwork.com/' + str(elem['href'])
+            if res not in hist:
+                hist.append(res)
+                urls.append(res)
+            else:
+                continue
 
         return urls
 

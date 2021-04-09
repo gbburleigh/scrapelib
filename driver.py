@@ -123,6 +123,7 @@ class Driver:
 
         #Delete crawler
         del self.crawler
+        self.crawler = self.generate_crawler()
 
         #Give ourselves a second
         time.sleep(2)
@@ -134,16 +135,14 @@ class Driver:
         """
 
         from urllib3.exceptions import MaxRetryError, NewConnectionError
-
         #While we haven't successfully run
         while True:
             try:
                 #Try to run
                 self.run()
                 break
-            except DBError or MaxRetryError or NewConnectionError or ConnectionRefusedError as e:
+            except:
                 #Otherwise restart
-                print(e)
                 self.restart()
                 time.sleep(10)
 
