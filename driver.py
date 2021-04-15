@@ -68,20 +68,44 @@ class Driver:
         if '-r' not in sys.argv:
             #Get deleted info
             _ = self.db.compare(old_db)
-        
+
+        targets = ['https://community.upwork.com/t5/Announcements/bd-p/news', \
+        'https://community.upwork.com/t5/Freelancers/bd-p/freelancers', \
+        'https://community.upwork.com/t5/Clients/bd-p/clients', \
+        'https://community.upwork.com/t5/Agencies/bd-p/Agencies']
+        target = None
+        for tar in targets:
+            if tar in sys.argv:
+                target = tar
+
         #Write result
-        self.db.write()
+        self.db.write(target_name=target)
 
     def generate_crawler(self):
         """
         Convenience method for creating Crawler objects in driver.run
         """
+        
+        targets = ['https://community.upwork.com/t5/Announcements/bd-p/news', \
+        'https://community.upwork.com/t5/Freelancers/bd-p/freelancers', \
+        'https://community.upwork.com/t5/Clients/bd-p/clients', \
+        'https://community.upwork.com/t5/Agencies/bd-p/Agencies']
+        target = None
+        for tar in targets:
+            if tar in sys.argv:
+                target = tar
 
         #Regenerate crawler object depending on params
-        if '-d' in sys.argv:
-            crawler = Crawler(self.webdriver, self.db, debug=True)
+        if target is None:
+            if '-d' in sys.argv:
+                crawler = Crawler(self.webdriver, self.db, debug=True)
+            else:
+                crawler = Crawler(self.webdriver, self.db)
         else:
-            crawler = Crawler(self.webdriver, self.db)
+            if '-d' in sys.argv:
+                crawler = Crawler(self.webdriver, self.db, debug=True, link=target)
+            else:
+                crawler = Crawler(self.webdriver, self.db, link=target)
 
         return crawler
 

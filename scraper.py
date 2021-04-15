@@ -4,6 +4,7 @@ from datetime import datetime
 from header import *
 import requests
 import validators
+from dbmanager import DBConn
 
 class ThreadScraper:
     """
@@ -17,7 +18,6 @@ class ThreadScraper:
     def __init__(self, driver, sitedb: SiteDB, debug=False):
         #Webdriver object
         self.driver = driver
-
         #Associated category page we got thread from
         self.page = 0
 
@@ -38,7 +38,7 @@ class ThreadScraper:
         #Reset page number
         self.page = pagenum
 
-    def parse(self, html, url, categ, page_expire_limit=10):
+    def parse(self, html, url, categ, category_id, page_expire_limit=10):
         """
         Main data collection and serialization function. Creates BeautifulSoup object and 
         collects relevant information, if available. Updates self.db.stats as needed and creates
@@ -144,15 +144,14 @@ class ThreadScraper:
                         soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
                     else:
                         r = requests.get(self.generate_next(url, pagenum))
-                        soup = BeautifulSoup(r.text, 'lxml')
+                        soup = BeautifulSoup(r.content, 'html.parser')
             else:
-                    if '-p' not in sys.argv:
-                        self.driver.get(url)
-                        soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
-                    else:
-                        r = requests.get(url)
-                        soup = BeautifulSoup(r.text, 'lxml')
-            time.sleep(2)
+                if '-p' not in sys.argv:
+                    self.driver.get(url)
+                    soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
+                else:
+                    r = requests.get(url)
+                    soup = BeautifulSoup(r.content, 'html.parser')
 
             msgli, count = self.get_message_divs(soup, categ, url)
             try:
@@ -240,8 +239,7 @@ class ThreadScraper:
                         soup = BeautifulSoup(self.driver.page_source, 'lxml')
                     else:
                         r = requests.get(item[1])
-                        soup = BeautifulSoup(r.text, 'lxml')
-                    time.sleep(2)
+                        soup = BeautifulSoup(r.content, 'html.parser')
 
                     #Parse out relevant user info
                     
@@ -255,6 +253,8 @@ class ThreadScraper:
 
                     #Create user object and handle it, then add post
                     u = User(item[2], joindate, item[1], rank)
+                    with DBConn() as conn:
+                        conn.insert_from_user(u)
                     userlist.handle_user(u)
                     item[0].add_edited(u)
                     postlist.add(item[0])
@@ -275,13 +275,13 @@ class ThreadScraper:
                 soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
             else:
                 r = requests.get(self.generate_next(url, item[1]))
-                soup = BeautifulSoup(r.text, 'lxml')
-            time.sleep(2)
+                soup = BeautifulSoup(r.content, 'html.parser')
             newli, _ = self.get_message_divs(soup, categ, url)
             for msg in newli:
+                if msg is None:
+                    continue
                 try:
-                    if msg is not None:
-                        p, editor_id, edited_url, edited_by = self.parse_message_div(msg, url, item[1])
+                    p, editor_id, edited_url, edited_by = self.parse_message_div(msg, url, item[1])
                     if p.index == item[0] or p.index not in checked_indices:
                         if editor_id != '' and edited_by != p.author.name:
                             missingqueue.append((p, edited_url, edited_by))
@@ -291,10 +291,8 @@ class ThreadScraper:
                         if not missing_bool:
                             postlist.add(p)
                 except Exception as e:
-                    import traceback
                     print(f'Something went wrong while finding missing posts\n {e}')
                     print(url)
-                    pass
 
         for item in missingqueue:
             #Get editor profile
@@ -303,8 +301,7 @@ class ThreadScraper:
                 soup = BeautifulSoup(self.driver.page_source, 'lxml')
             else:
                 r = requests.get(item[1])
-                soup = BeautifulSoup(r.text, 'lxml')
-            time.sleep(2)
+                soup = BeautifulSoup(r.content, 'html.parser')
             #Parse out relevant user info
             
             data_container = soup.find('div', class_='userdata-combine-container')
@@ -317,6 +314,8 @@ class ThreadScraper:
 
             #Create user object and handle it, then add post
             u = User(item[2], joindate, item[1], rank)
+            with DBConn() as conn:
+                conn.insert_from_user(u)
             userlist.handle_user(u)
             item[0].add_edited(u)
             postlist.add(item[0])
@@ -333,6 +332,9 @@ class ThreadScraper:
         #Generate thread object and return
         t = Thread(postlist, url, author, url.split('/t5/')[1].split('/')[0], \
             self.page, post_date, title, edit_date, userlist, post_total)
+        with DBConn() as conn:
+            for p in t.postlist:
+                conn.insert_from_post(p, t.id, category_id)
         return t
 
     def generate_next(self, url, _iter):
@@ -540,6 +542,8 @@ class ThreadScraper:
 
         #Generate author user object
         u = User(name, member_since, _url, rank)
+        with DBConn() as conn:
+            conn.insert_from_user(u)
 
         #Generate post object
         p = Post(postdate, editdate, post, u, url, pagenum, index, url.split('/t5/')[1].split('/')[0])

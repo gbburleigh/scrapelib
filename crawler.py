@@ -6,6 +6,7 @@ from header import *
 from datetime import datetime
 from bs4 import BeautifulSoup, element
 from selenium import webdriver
+from dbmanager import DBConn
 from progress.bar import Bar
 import requests
 
@@ -24,7 +25,7 @@ class Crawler:
     skipped(list(str)): URLs to skip parsing for
     targets(list(str)): category URLs to scrape form
     """
-    def __init__(self, driver, sitedb: SiteDB, debug=False, target='upwork', max_page_scroll=5):
+    def __init__(self, driver, sitedb: SiteDB, debug=False, target='upwork', max_page_scroll=5, link=None):
         #Inherited driver object
         self.driver = driver
 
@@ -48,10 +49,13 @@ class Crawler:
             self.scraper = ThreadScraper(self.driver, self.db)
         
         #Category URLs to parse
-        self.targets = ['https://community.upwork.com/t5/Announcements/bd-p/news', \
-                        'https://community.upwork.com/t5/Freelancers/bd-p/freelancers', \
-                       'https://community.upwork.com/t5/Clients/bd-p/clients', \
-                       'https://community.upwork.com/t5/Agencies/bd-p/Agencies']
+        if link is None:
+            self.targets = ['https://community.upwork.com/t5/Announcements/bd-p/news', \
+                            'https://community.upwork.com/t5/Freelancers/bd-p/freelancers', \
+                        'https://community.upwork.com/t5/Clients/bd-p/clients', \
+                        'https://community.upwork.com/t5/Agencies/bd-p/Agencies']
+        else:
+            self.targets=[link]
 
     def crawl(self):
         """
@@ -75,12 +79,12 @@ class Crawler:
                 if '-p' not in sys.argv:
                     print('Regenerating driver...... \n')
                     self.regenerate_driver()
-                    time.sleep(2)
+            #        time.sleep(2)
 
-            time.sleep(2)
+            #time.sleep(2)
 
             #Generate a category object from target URL
-            category = self.parse_page(target)
+            category = self.parse_page(target, iter_ + 1)
 
             #If something went wrong with creating the object, throw relevant exception to 
             #trigger restart
@@ -104,7 +108,7 @@ class Crawler:
                             self.driver.get(url)
                             #Attempt to parse thread page
                             try:
-                                thread = self.scraper.parse(self.driver.page_source, url, target.split('/t5/')[1].split('/')[0])
+                                thread = self.scraper.parse(self.driver.page_source, url, target.split('/t5/')[1].split('/')[0], iter_)
                             #This indicates a thread has been made inaccessible, add it to deleted threads
                             except AttributeError:
                                 if target.split('/t5/')[1].split('/')[0] in self.db.stats.deleted_threads.keys():
@@ -114,14 +118,14 @@ class Crawler:
                         else:
                             r = requests.get(url)
                             try:
-                                thread = self.scraper.parse(r.text, url, target.split('/t5/')[1].split('/')[0])
+                                thread = self.scraper.parse(r.text, url, target.split('/t5/')[1].split('/')[0], iter_)
                             #This indicates a thread has been made inaccessible, add it to deleted threads
                             except AttributeError:
                                 if target.split('/t5/')[1].split('/')[0] in self.db.stats.deleted_threads.keys():
                                     self.db.stats.deleted_threads[target.split('/t5/')[1].split('/')[0]].append(url)
                                 else:
                                     self.db.stats.deleted_threads[target.split('/t5/')[1].split('/')[0]] = [url]
-                        time.sleep(2)
+                        #time.sleep(2)
                         category.add(thread)
                         bar.next()
             iter_ += 1
@@ -131,7 +135,7 @@ class Crawler:
                 self.db.stats.failures.append(elem)
         return self.db
 
-    def parse_page(self, tar):
+    def parse_page(self, tar, iter_):
         """
         Main parsing function for getting URLs and thread objects from category page. Interfaces with
         scraper object to iterate through possible threads and scrape all data from them. Checks for
@@ -172,7 +176,7 @@ class Crawler:
                     else:
                         r = requests.get(self.generate_next(tar, currentpage))
                     soup = BeautifulSoup(r.text, 'lxml')
-                time.sleep(2)
+                #time.sleep(2)
 
                 #Update scraper pagenumber
                 self.scraper.update_page(currentpage)
@@ -188,7 +192,7 @@ class Crawler:
                         self.driver.get(url)
                         #Attempt to parse thread page
                         try:
-                            thread = self.scraper.parse(self.driver.page_source, url, tar.split('/t5/')[1].split('/')[0])
+                            thread = self.scraper.parse(self.driver.page_source, url, tar.split('/t5/')[1].split('/')[0], iter_)
                         #This indicates a thread has been made inaccessible, add it to deleted threads
                         except AttributeError:
                             if tar.split('/t5/')[1].split('/')[0] in self.db.stats.deleted_threads.keys():
@@ -198,21 +202,25 @@ class Crawler:
                     else:
                         r = requests.get(url)
                         try:
-                            thread = self.scraper.parse(r.text, url, tar.split('/t5/')[1].split('/')[0])
+                            thread = self.scraper.parse(r.text, url, tar.split('/t5/')[1].split('/')[0], iter_)
                         #This indicates a thread has been made inaccessible, add it to deleted threads
                         except AttributeError:
                             if tar.split('/t5/')[1].split('/')[0] in self.db.stats.deleted_threads.keys():
                                 self.db.stats.deleted_threads[tar.split('/t5/')[1].split('/')[0]].append(url)
                             else:
                                 self.db.stats.deleted_threads[tar.split('/t5/')[1].split('/')[0]] = [url]
-                    time.sleep(2)
+                    #time.sleep(2)
                     if thread is not None and thread.post_count != 0:
                         threadli.append(thread)
+                        with DBConn() as conn:
+                            conn.insert_from_thread(thread, iter_)
                         print(thread.__str__())
                     bar.next()
-
+        c = Category(threadli, tar.split('/t5/')[1].split('/')[0], iter_, self.max_page_scroll)
+        with DBConn() as conn:
+            conn.insert_from_category(c)
         #Create and return category object
-        return Category(threadli, tar.split('/t5/')[1].split('/')[0])
+        return c
 
     def generate_next(self, url, _iter):
         """

@@ -515,6 +515,8 @@ class Thread:
         self.posts = {}
         self.page = page
         self.users = users
+        payload = (title + url).encode('utf-8')
+        self.id = hashlib.md5(payload).hexdigest()[:16]
         self.total = int(total)
         for post in self.postlist.postlist:
             self.posts[post.author.id] = post
@@ -523,6 +525,10 @@ class Thread:
             self.oldest_index = min([post.index for post in self.postlist.postlist])
         else:
             self.oldest_index = 0
+
+    def generate_id(self):
+        payload = (self.title + self.url).encode('utf-8')
+        self.id = hashlib.md5(payload).hexdigest()[:16]
 
     def __json__(self):
         """
@@ -545,6 +551,7 @@ class Thread:
         d['users'] = u.__json__()
         d['oldest_index'] = self.oldest_index
         d['post_count'] = self.post_count
+        d['id'] = self.id
 
         return d
 
@@ -564,6 +571,7 @@ class Thread:
         self.page = d['page']
         self.total = d['total']
         self.oldest_index = d['oldest_index']
+        self.id = d['id']
         for item in d['postlist']:
             p = Post('', '', '', User('', '', '', ''), '', '', '0', '')
             p.load(item)
@@ -672,16 +680,36 @@ class Category:
     <--Attributes-->
     oldest(Thread): oldest thread associated with category
     """
-    def __init__(self, threads: [Thread], name):
+    def __init__(self, threads: [Thread], name, id, page_count):
         self.name = name
+        self.id = id
         self.threads = {}
         self.threadlist = threads
         self.oldest = Thread(PostList([]), '', '', '', '', '', '', '', UserList([]), '0')
+        if name == 'Agencies':
+            self.url = 'https://community.upwork.com/t5/Agencies/bd-p/Agencies'
+        elif name == 'Freelancers':
+            self.url = 'https://community.upwork.com/t5/Freelancers/bd-p/freelancers'
+        elif name == 'Clients':
+            self.url = 'https://community.upwork.com/t5/Clients/bd-p/clients'
+        elif name == 'Announcements':
+            self.url = 'https://community.upwork.com/t5/Announcements/bd-p/news'
+
         if len(threads) > 0:
             for thread in threads:
                 self.threads[thread.url] = thread
             self.oldest = self.threads[random.choice(list(self.threads.keys()))]
             self.find_oldest()
+
+    def set_url(self):
+        if self.name == 'Agencies':
+            self.url = 'https://community.upwork.com/t5/Agencies/bd-p/Agencies'
+        elif self.name == 'Freelancers':
+            self.url = 'https://community.upwork.com/t5/Freelancers/bd-p/freelancers'
+        elif self.name == 'Clients':
+            self.url = 'https://community.upwork.com/t5/Clients/bd-p/clients'
+        elif self.name == 'Announcements':
+            self.url = 'https://community.upwork.com/t5/Announcements/bd-p/news'
 
     def find_oldest(self):
         """
@@ -732,6 +760,7 @@ class Category:
         for thread in self.threadlist:
             d['threadlist'].append(thread.__json__())
         d['oldest'] = self.oldest.__json__()
+        d['page_count'] = self.page_count
 
         return d
 
@@ -749,7 +778,13 @@ class Category:
             self.threadlist.append(t)
         for t in self.threadlist:
             self.threads[t.url] = t
-        self.oldest = d['oldest']
+        tt = Thread(PostList([]), '', '', '', '', '', '', '', UserList([]), '0')
+        tt.load(d['oldest'])
+        self.oldest = tt
+        try:
+            self.page_count = d['page_count']
+        except:
+            self.page_count = 0
 
     def __str__(self):
         """
@@ -1188,11 +1223,13 @@ class SiteDB:
             dl = DeleteList([])
             dl.load(d['deletes'][url])
             self.deletes[url] = dl
+        iter_ = 0
         for category in d['categories']:
-            c = Category([], '')
+            c = Category([], '', iter_, 0)
             c.load(category)
             self.categories.append(c)
             self.cache[c.name] = c
+            iter_ += 1
         self.stats.load(d['stats'])
         try:
             self.last_scan = d['last_scan']
@@ -1267,7 +1304,7 @@ class SiteDB:
 
         return li
 
-    def write(self):
+    def write(self, target_name=None):
         """
         Main caching and exporting function. Serializes current cache, stats as json and stores 
         it in a zip archive with filename denoting scan version for this dirctory. Directories are
@@ -1278,65 +1315,125 @@ class SiteDB:
         if not os.path.isdir(os.getcwd() + f'/cache/logs/{now}'):
             os.mkdir(os.getcwd() + f'/cache/logs/{now}')
         try:
-            with ZipFile(os.getcwd() + '/cache/logs/{}/v1.zip'.format(now), 'x') as z:
-                with z.open('v1.json', 'w') as f:
-                    d = self.compile()
-                    f.write(json.dumps(d, indent=4).encode('utf-8'))
-                with z.open(f'stats_v1.json', 'w') as f:
-                    f.write(json.dumps(self.stats.__json__(), indent=4).encode('utf-8'))
+            if target_name is None:
+                with ZipFile(os.getcwd() + '/cache/logs/{}/v1.zip'.format(now), 'x') as z:
+                    with z.open('v1.json', 'w') as f:
+                        d = self.compile()
+                        f.write(json.dumps(d, indent=4).encode('utf-8'))
+                    with z.open(f'stats_v1.json', 'w') as f:
+                        f.write(json.dumps(self.stats.__json__(), indent=4).encode('utf-8'))
+            else:
+                with ZipFile(os.getcwd() + '/cache/logs/{}/v1.zip'.format(now), 'x') as z:
+                    with z.open(f'{target_name}_v1.json', 'w') as f:
+                        d = self.compile()
+                        f.write(json.dumps(d, indent=4).encode('utf-8'))
+                    with z.open(f'{target_name}_stats_v1.json', 'w') as f:
+                        f.write(json.dumps(self.stats.__json__(), indent=4).encode('utf-8'))
         except FileExistsError:
                 import glob
                 list_of_files = glob.glob(os.getcwd() + f'/cache/logs/{now}/*.zip') # * means all if need specific format then *.csv
                 latest_file = max(list_of_files, key=os.path.getctime)
-                with ZipFile(os.getcwd() + '/cache/logs/{}/v{}.zip'.format(now, str(int(latest_file.split('v')[1].split('.zip')[0]) + 1)), 'x') as z:
+                if target_name is None:
+                    with ZipFile(os.getcwd() + '/cache/logs/{}/v{}.zip'.format(now, str(int(latest_file.split('v')[1].split('.zip')[0]) + 1)), 'x') as z:
                         with z.open('v{}.json'.format(str(int(latest_file.split('v')[1].split('.zip')[0]) + 1)), 'w') as f:
                             d = self.compile()
                             f.write(json.dumps(d, indent=4).encode('utf-8'))
                         with z.open(f"stats_v{str(int(latest_file.split('v')[1].split('.zip')[0]) + 1)}.json", 'w') as f:
                             f.write(json.dumps(self.stats.__json__(), indent=4).encode('utf-8'))
-            
-        with open(os.getcwd() + f'/cache/csv/{datetime.now().strftime("%Y-%m-%d")}.csv', "w") as f:
-            f = csv.writer(f)
-            f.writerow(["title", "post_date", "edit_date", "edit_time", "message_text",\
-                    "post_moderation", "category", "url", "page", "index", "user_name", \
-                    "user_id", "user_rank", "user_joindate", "user_url", "editor_name", \
-                    "editor_id", "editor_joindate", "editor_url", "editor_rank"])
-            for category in self.categories:
-                for thread in category.threadlist:
-                    for author, post in thread.posts.items():
-                        if post.message != '':
-                            f.writerow([thread.title, post.postdate, post.editdate, post.edit_time, post.message, \
-                            post.edit_status, category.name, thread.url, post.page, post.index,\
-                            post.author.name, post.author.id, post.author.rank, post.author.joindate, \
-                            post.author.url, post.editor.name, post.editor.id, post.editor.joindate, post.editor.url, post.editor.rank])
-                        else:
-                            try:
-                                if post.id in self.pred[category.name].threads[post.url].postlist.posts.keys():
-                                    old_post = self.pred[category.name].threads[post.url].postlist.posts[post.id]
-                                    f.writerow([thread.title, post.postdate, post.editdate, post.edit_time, old_post.message, \
-                                    '<--Deleted-->', category.name, thread.url, post.page, post.index,\
-                                    post.author.name, post.author.id, post.author.rank, post.author.joindate, \
-                                    post.author.url, post.editor.name, post.editor.id, post.editor.joindate, post.editor.url, post.editor.rank])
-                            except KeyError:
-                                pass
-                    if thread.url in self.deletes.keys():
-                        for post in self.deletes[thread.url].deletelist:
-                            f.writerow([thread.title, post.postdate, post.editdate, post.edit_time, post.message, \
-                            '<--Deleted-->', category.name, thread.url, post.page, post.index,\
-                            post.author.name, post.author.id, post.author.rank, post.author.joindate, \
-                            post.author.url, post.editor.name, post.editor.id, post.editor.joindate, post.editor.url, post.editor.rank])
-            if category.name in self.stats.deleted_threads.keys():
-                for url in self.stats.deleted_threads[category.name]:
-                    try:
-                        if url in self.pred[category.name].threads.keys():
-                            entry = self.pred[category.name].threads[url]
-                            for post in entry.postlist.postlist:
+                else:
+                    with ZipFile(os.getcwd() + '/cache/logs/{}/v{}.zip'.format(now, str(int(latest_file.split('v')[1].split('.zip')[0]) + 1)), 'x') as z:
+                        with z.open('{}_v{}.json'.format(target_name, str(int(latest_file.split('v')[1].split('.zip')[0]) + 1)), 'w') as f:
+                            d = self.compile()
+                            f.write(json.dumps(d, indent=4).encode('utf-8'))
+                        with z.open(f"{target_name}_stats_v{str(int(latest_file.split('v')[1].split('.zip')[0]) + 1)}.json", 'w') as f:
+                            f.write(json.dumps(self.stats.__json__(), indent=4).encode('utf-8'))
+
+        if target_name is None:
+            with open(os.getcwd() + f'/cache/csv/{datetime.now().strftime("%Y-%m-%d")}.csv', "w") as f:
+                f = csv.writer(f)
+                f.writerow(["title", "post_date", "edit_date", "edit_time", "message_text",\
+                        "post_moderation", "category", "url", "page", "index", "user_name", \
+                        "user_id", "user_rank", "user_joindate", "user_url", "editor_name", \
+                        "editor_id", "editor_joindate", "editor_url", "editor_rank"])
+                for category in self.categories:
+                    for thread in category.threadlist:
+                        for author, post in thread.posts.items():
+                            if post.message != '':
+                                f.writerow([thread.title, post.postdate, post.editdate, post.edit_time, post.message, \
+                                post.edit_status, category.name, thread.url, post.page, post.index,\
+                                post.author.name, post.author.id, post.author.rank, post.author.joindate, \
+                                post.author.url, post.editor.name, post.editor.id, post.editor.joindate, post.editor.url, post.editor.rank])
+                            else:
+                                try:
+                                    if post.id in self.pred[category.name].threads[post.url].postlist.posts.keys():
+                                        old_post = self.pred[category.name].threads[post.url].postlist.posts[post.id]
+                                        f.writerow([thread.title, post.postdate, post.editdate, post.edit_time, old_post.message, \
+                                        '<--Deleted-->', category.name, thread.url, post.page, post.index,\
+                                        post.author.name, post.author.id, post.author.rank, post.author.joindate, \
+                                        post.author.url, post.editor.name, post.editor.id, post.editor.joindate, post.editor.url, post.editor.rank])
+                                except KeyError:
+                                    pass
+                        if thread.url in self.deletes.keys():
+                            for post in self.deletes[thread.url].deletelist:
                                 f.writerow([thread.title, post.postdate, post.editdate, post.edit_time, post.message, \
                                 '<--Deleted-->', category.name, thread.url, post.page, post.index,\
                                 post.author.name, post.author.id, post.author.rank, post.author.joindate, \
                                 post.author.url, post.editor.name, post.editor.id, post.editor.joindate, post.editor.url, post.editor.rank])
-                    except KeyError:
-                        pass
+                if category.name in self.stats.deleted_threads.keys():
+                    for url in self.stats.deleted_threads[category.name]:
+                        try:
+                            if url in self.pred[category.name].threads.keys():
+                                entry = self.pred[category.name].threads[url]
+                                for post in entry.postlist.postlist:
+                                    f.writerow([thread.title, post.postdate, post.editdate, post.edit_time, post.message, \
+                                    '<--Deleted-->', category.name, thread.url, post.page, post.index,\
+                                    post.author.name, post.author.id, post.author.rank, post.author.joindate, \
+                                    post.author.url, post.editor.name, post.editor.id, post.editor.joindate, post.editor.url, post.editor.rank])
+                        except KeyError:
+                            pass
+        else:
+            with open(os.getcwd() + f'/cache/csv/{target_name}_{datetime.now().strftime("%Y-%m-%d")}.csv', "w") as f:
+                f = csv.writer(f)
+                f.writerow(["title", "post_date", "edit_date", "edit_time", "message_text",\
+                        "post_moderation", "category", "url", "page", "index", "user_name", \
+                        "user_id", "user_rank", "user_joindate", "user_url", "editor_name", \
+                        "editor_id", "editor_joindate", "editor_url", "editor_rank"])
+                for category in self.categories:
+                    for thread in category.threadlist:
+                        for author, post in thread.posts.items():
+                            if post.message != '':
+                                f.writerow([thread.title, post.postdate, post.editdate, post.edit_time, post.message, \
+                                post.edit_status, category.name, thread.url, post.page, post.index,\
+                                post.author.name, post.author.id, post.author.rank, post.author.joindate, \
+                                post.author.url, post.editor.name, post.editor.id, post.editor.joindate, post.editor.url, post.editor.rank])
+                            else:
+                                try:
+                                    if post.id in self.pred[category.name].threads[post.url].postlist.posts.keys():
+                                        old_post = self.pred[category.name].threads[post.url].postlist.posts[post.id]
+                                        f.writerow([thread.title, post.postdate, post.editdate, post.edit_time, old_post.message, \
+                                        '<--Deleted-->', category.name, thread.url, post.page, post.index,\
+                                        post.author.name, post.author.id, post.author.rank, post.author.joindate, \
+                                        post.author.url, post.editor.name, post.editor.id, post.editor.joindate, post.editor.url, post.editor.rank])
+                                except KeyError:
+                                    pass
+                        if thread.url in self.deletes.keys():
+                            for post in self.deletes[thread.url].deletelist:
+                                f.writerow([thread.title, post.postdate, post.editdate, post.edit_time, post.message, \
+                                '<--Deleted-->', category.name, thread.url, post.page, post.index,\
+                                post.author.name, post.author.id, post.author.rank, post.author.joindate, \
+                                post.author.url, post.editor.name, post.editor.id, post.editor.joindate, post.editor.url, post.editor.rank])
+                if category.name in self.stats.deleted_threads.keys():
+                    for url in self.stats.deleted_threads[category.name]:
+                        try:
+                            if url in self.pred[category.name].threads.keys():
+                                entry = self.pred[category.name].threads[url]
+                                for post in entry.postlist.postlist:
+                                    f.writerow([thread.title, post.postdate, post.editdate, post.edit_time, post.message, \
+                                    '<--Deleted-->', category.name, thread.url, post.page, post.index,\
+                                    post.author.name, post.author.id, post.author.rank, post.author.joindate, \
+                                    post.author.url, post.editor.name, post.editor.id, post.editor.joindate, post.editor.url, post.editor.rank])
+                        except KeyError:
+                            pass
 
         self.report()
         self.save_log()

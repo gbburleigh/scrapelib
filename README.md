@@ -43,7 +43,6 @@ Object for storing necessary information about a post on a thread, including low
 
 <h2>PostList</h2>
 
-
 <h2>DeleteList</h2>
 
 <h2>Thread</h2>
