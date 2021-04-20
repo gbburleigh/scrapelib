@@ -12,7 +12,7 @@ class DBConn:
     def __enter__(self):
         return self
 
-    def __exit__(self):
+    def __exit__(self, exc_type, exc_value, exc_traceback):
         try:
             self.conn.close()
         except:
@@ -26,7 +26,7 @@ class DBConn:
             print(e)
 
     def create_tables(self):
-        fd = open('/scripts/createdb.sql', 'r')
+        fd = open(os.getcwd() + '/scripts/createdb.sql', 'r')
         sql_file = fd.read()
         fd.close()
 
@@ -59,11 +59,15 @@ class DBConn:
         self.conn.commit()
 
     def insert_from_category(self, category: Category):
-        self.curs.execute(f'''
-            INSERT INTO categories VALUES
-            ({category.id}, {category.name}, {category.url}, {category.page_count}, {len(category.threadlist)})
-        ''')
-        self.conn.commit()
+        self.curs.execute("SELECT rowid FROM categories WHERE cid = ?", (int(category.id),))
+        data = self.curs.fetchall()
+        if len(data)==0:
+            print(f'Inserting category into database w/ id {category.id}')
+            self.curs.execute(f"""
+                INSERT INTO categories(cid, category_name, category_url, page_count, thread_count) VALUES
+                (?, ?, ?, ?, ?);
+            """, (int(category.id), str(category.name), str(category.url), int(category.page_count), len(category.threadlist)))
+            self.conn.commit()
 
     def insert_thread(self, id, category_id, title, post_date, thread_url, author_name, \
         edit_date='NULL', post_count='NULL'):
@@ -75,17 +79,22 @@ class DBConn:
         self.conn.commit()
 
     def insert_from_thread(self, thread: Thread, category_id):
-        self.curs.execute(f'''
-            INSERT INTO threads VALUES
-            ({thread.id}, {category_id}, {thread.title}, {thread.postdate}, {thread.editdate}, 
-            {thread.url}, {thread.op}, {thread.post_count})
-        ''')
-        self.conn.commit()
+        self.curs.execute("SELECT rowid FROM threads WHERE tid = ?", (str(thread.id),))
+        data = self.curs.fetchall()
+        if len(data)==0:
+            print(f'Inserting thread into database w/ id {thread.id}')
+            self.curs.execute(f"""
+                INSERT INTO threads(tid, category_id, title, post_date, edit_date, thread_url, author_name, post_count) VALUES
+                (?, ?, ?, ?, ?, ?, ?, ?);
+            """, (str(thread.id), int(category_id), str(thread.title), str(thread.postdate), str(thread.editdate), 
+                str(thread.url), str(thread.op), int(thread.post_count)))
+            self.conn.commit()
 
     def insert_post(self, id, thread_id, category_id, message_text, author_id, \
         edit_status, post_page, post_index, edit_date='NULL', edit_time='NULL', editor_id='NULL'):
         self.curs.execute(f'''
-            INSERT INTO posts VALUES
+            INSERT INTO posts (pid, tid, cid, message_text, post_date, edit_date, edit_time, author_id, 
+            editor_id, edit_status, post_page, post_index) VALUES
             ({id}, {thread_id}, {category_id}, {message_text}, {post_date}, 
             {edit_date}, {edit_time}, {author_id}, {editor_id}, {edit_status},
             {post_page}, {post_index})
@@ -93,27 +102,35 @@ class DBConn:
         self.conn.commit()
 
     def insert_from_post(self, post: Post, thread_id, category_id):
-        self.curs.execute(f'''
-            INSERT INTO posts VALUES
-            ({post.id}, {thread_id}, {category_id}, {post.message}, {post.postdate}, 
-            {post.editdate}, {post.edit_time}, {post.author.id}, {post.editor.id}, {post.edit_status},
-            {post.page}, {post.index})
-        ''')
-        self.conn.commit()
+        self.curs.execute("SELECT rowid FROM posts WHERE pid = ?", (str(post.id),))
+        data = self.curs.fetchall()
+        if len(data)==0:
+            print(f'Inserting post into database w/ id {post.id}')
+            self.curs.execute(f"""
+                INSERT INTO posts(pid, tid, cid, message_text, post_date, edit_date, edit_time, author_id, 
+                editor_id, edit_status, post_page, post_index) VALUES
+                (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            """, (str(post.id), str(thread_id), str(category_id), str(post.message), str(post.postdate), str(post.editdate), str(post.edit_time), \
+                str(post.author.id), str(post.editor.id), str(post.edit_status), int(post.page), int(post.index)))
+            self.conn.commit()
 
-    def insert_user(self, id, user_name, user_url, join_date, user_rank):
+    def insert_user(self, uid, user_name, user_url, join_date, user_rank):
         self.curs.execute(f'''
-            INSERT INTO users VALUES
-            ({id}, {user_name}, {user_url}, {join_date}, {user_rank})
-        ''')
+            INSERT INTO users(uid, user_name, user_url, join_date, user_rank) VALUES
+            ('?', '?', '?', '?', '?')
+        ''', (str(uid), str(user_name), str(user_url), str(join_date), str(user_rank)))
         self.conn.commit()
 
     def insert_from_user(self, user: User):
-        self.curs.execute(f'''
-            INSERT INTO users VALUES
-            ({user.id}, {user.name}, {user.url}, {user.joindate}, {user.rank})
-        ''')
-        self.conn.commit()
+        self.curs.execute("SELECT rowid FROM users WHERE uid = ?", (str(user.id),))
+        data = self.curs.fetchall()
+        if len(data)==0:
+            print(f'Inserting user into database w/ id {user.id}')
+            self.curs.execute(f"""
+                INSERT INTO users(uid, user_name, user_url, join_date, user_rank) VALUES
+                (?, ?, ?, ?, ?);
+            """, (str(user.id), str(user.name), str(user.url), str(user.joindate), str(user.rank)))
+            self.conn.commit()
 
     def close(self):
         try:

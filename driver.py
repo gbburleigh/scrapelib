@@ -16,33 +16,36 @@ class Driver:
         self.driver_type = '' 
         #Generate webdriver object depending on argument given at runtime. Always runs in headless
         #mode with disabled GPU
-        if '-f' in sys.argv:
-            from selenium.webdriver.firefox.options import Options
-            from webdriver_manager import firefox
-            from webdriver_manager.firefox import GeckoDriverManager
-            options = Options()
-            options.add_argument('--headless')
-            options.add_argument('--disable-gpu')
-            self.webdriver = webdriver.Firefox(executable_path=GeckoDriverManager().install(), \
-            firefox_options=options)
-            self.driver_type = 'firefox_wdm'
-        elif '-c' in sys.argv:
-            import chromedriver_binary
-            from selenium.webdriver.chrome.options import Options
-            options = Options()
-            options.add_argument('--headless')
-            options.add_argument('--disable-gpu')
-            self.webdriver = webdriver.Chrome(options=options)
-            self.driver_type = 'chrome_binary'
+        if '-p' not in sys.argv:
+            if '-f' in sys.argv:
+                from selenium.webdriver.firefox.options import Options
+                from webdriver_manager import firefox
+                from webdriver_manager.firefox import GeckoDriverManager
+                options = Options()
+                options.add_argument('--headless')
+                options.add_argument('--disable-gpu')
+                self.webdriver = webdriver.Firefox(executable_path=GeckoDriverManager().install(), \
+                firefox_options=options)
+                self.driver_type = 'firefox_wdm'
+            elif '-c' in sys.argv:
+                import chromedriver_binary
+                from selenium.webdriver.chrome.options import Options
+                options = Options()
+                options.add_argument('--headless')
+                options.add_argument('--disable-gpu')
+                self.webdriver = webdriver.Chrome(options=options)
+                self.driver_type = 'chrome_binary'
+            else:
+                from selenium.webdriver.chrome.options import Options
+                from webdriver_manager import chrome
+                from webdriver_manager.chrome import ChromeDriverManager
+                options = Options()
+                options.add_argument('--headless')
+                options.add_argument('--disable-gpu')
+                self.webdriver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
+                self.driver_type = 'chrome_wdm'
         else:
-            from selenium.webdriver.chrome.options import Options
-            from webdriver_manager import chrome
-            from webdriver_manager.chrome import ChromeDriverManager
-            options = Options()
-            options.add_argument('--headless')
-            options.add_argument('--disable-gpu')
-            self.webdriver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
-            self.driver_type = 'chrome_wdm'
+            self.webdriver = None
         self.crawler = self.generate_crawler()
         
     def run(self):
@@ -79,7 +82,7 @@ class Driver:
                 target = tar
 
         #Write result
-        self.db.write(target_name=target)
+        #self.db.write(target_name=target)
 
     def generate_crawler(self):
         """
@@ -116,8 +119,12 @@ class Driver:
         """
 
         #Kill all zombie PIDs and exit gracefully
-        self.webdriver.quit()
-        self.kill()
+        try:
+            self.webdriver.quit()
+        except:
+            pass
+        if 'p' not in sys.argv:
+            self.kill()
         sys.exit()
 
     def kill(self):
@@ -167,17 +174,19 @@ class Driver:
                 break
             except:
                 #Otherwise restart
-                self.restart()
+                sys.exit()
+                #self.restart()
                 time.sleep(10)
 
 if __name__ == "__main__":
     now = datetime.now()
     d = Driver(start=now)
-    try:
-        d.scan()
-    except KeyboardInterrupt:
+    d.run()
+    #try:
+    #    d.scan()
+    #except KeyboardInterrupt:
         #d.close()
         #os.system('deactivate')
-        pass
+    #    pass
     d.close()
 

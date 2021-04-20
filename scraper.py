@@ -134,7 +134,7 @@ class ThreadScraper:
         queue = []
         #Iterate through thread pages from last page to limit defined above
         for pagenum in range(start, end-1, -1):
-            print(f'Currently on page {pagenum} of {url}')
+            #print(f'Currently on page {pagenum} of {url}')
             #If we're past the first page, we want to generate the next page URL and validate it
             if pagenum > 1:
                 if validators.url(self.generate_next(url, pagenum)):
@@ -172,11 +172,11 @@ class ThreadScraper:
             for msg in msgli:
                 if msg is None:
                     continue
-                try:
-                    p, editor_id, edited_url, edited_by = self.parse_message_div(msg, url, pagenum)
-                except Exception as e:
-                    import traceback
-                    print(f'Something went wrong while parsing a message div \n {url}, {e}')
+                #try:
+                p, editor_id, edited_url, edited_by = self.parse_message_div(msg, url, pagenum)
+                #except Exception as e:
+                 #   import traceback
+                  #  print(f'Something went wrong while parsing a message div \n {url}, {e}')
                 checked_indices.append(p.index)
                 userlist.handle_user(p.author)
                 in_queue = False
@@ -253,8 +253,6 @@ class ThreadScraper:
 
                     #Create user object and handle it, then add post
                     u = User(item[2], joindate, item[1], rank)
-                    with DBConn() as conn:
-                        conn.insert_from_user(u)
                     userlist.handle_user(u)
                     item[0].add_edited(u)
                     postlist.add(item[0])
@@ -314,8 +312,6 @@ class ThreadScraper:
 
             #Create user object and handle it, then add post
             u = User(item[2], joindate, item[1], rank)
-            with DBConn() as conn:
-                conn.insert_from_user(u)
             userlist.handle_user(u)
             item[0].add_edited(u)
             postlist.add(item[0])
@@ -333,7 +329,7 @@ class ThreadScraper:
         t = Thread(postlist, url, author, url.split('/t5/')[1].split('/')[0], \
             self.page, post_date, title, edit_date, userlist, post_total)
         with DBConn() as conn:
-            for p in t.postlist:
+            for p in t.postlist.postlist:
                 conn.insert_from_post(p, t.id, category_id)
         return t
 
@@ -542,8 +538,6 @@ class ThreadScraper:
 
         #Generate author user object
         u = User(name, member_since, _url, rank)
-        with DBConn() as conn:
-            conn.insert_from_user(u)
 
         #Generate post object
         p = Post(postdate, editdate, post, u, url, pagenum, index, url.split('/t5/')[1].split('/')[0])

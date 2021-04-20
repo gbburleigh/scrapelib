@@ -79,7 +79,10 @@ class UserList:
         user(User): user object to add to list
         """
         if user.id not in self.users.keys():
+            from dbmanager import DBConn
             self.users[user.id] = user
+            with DBConn() as conn:
+                conn.insert_from_user(user)
         elif user.id in self.users.keys():
             if self.users[user.id].joindate == '' and user.joindate != '':
                 self.users[user.id].joindate = user.joindate
@@ -700,6 +703,7 @@ class Category:
                 self.threads[thread.url] = thread
             self.oldest = self.threads[random.choice(list(self.threads.keys()))]
             self.find_oldest()
+        self.page_count = page_count
 
     def set_url(self):
         if self.name == 'Agencies':

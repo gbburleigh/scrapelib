@@ -25,7 +25,7 @@ class Crawler:
     skipped(list(str)): URLs to skip parsing for
     targets(list(str)): category URLs to scrape form
     """
-    def __init__(self, driver, sitedb: SiteDB, debug=False, target='upwork', max_page_scroll=5, link=None):
+    def __init__(self, driver, sitedb: SiteDB, debug=False, target='upwork', max_page_scroll=1, link=None):
         #Inherited driver object
         self.driver = driver
 
@@ -143,11 +143,14 @@ class Crawler:
         """
 
         #Get the target page
-        #self.driver.get(tar)
-
-        #If we're scanning entire website, reset max page scroll
-        if '-full' in sys.argv:
-            self.max_page_scroll = self.get_page_numbers()
+        if '-p' not in sys.argv:
+            self.driver.get(tar)
+            if '-full' in sys.argv:
+                self.max_page_scroll = self.get_page_numbers(self.driver.page_source.encode('utf-8').strip())
+        else:
+            r = requests.get(tar)
+            if '-full' in sys.argv:
+                self.max_page_scroll = self.get_page_numbers(r.text)
 
         #Instantiate thread list 
         threadli = []
@@ -214,7 +217,7 @@ class Crawler:
                         threadli.append(thread)
                         with DBConn() as conn:
                             conn.insert_from_thread(thread, iter_)
-                        print(thread.__str__())
+                        #print(thread.__str__())
                     bar.next()
         c = Category(threadli, tar.split('/t5/')[1].split('/')[0], iter_, self.max_page_scroll)
         with DBConn() as conn:
@@ -292,17 +295,17 @@ class Crawler:
 
         return urls
 
-    def get_page_numbers(self):
+    def get_page_numbers(self, html):
         """
         Helper for finding number of pages in a category listing. NOTE: This is defunct.
         """
         from bs4 import BeautifulSoup
 
         #Create soup object 
-        soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+        soup = BeautifulSoup(html, 'html.parser')
        
         #Parse out menu container
-        menubar = soup.find('div', class_='lia-paging-full-wrapper lia-paging-pager lia-paging-full-left-position lia-component-menu-bar')
+        menubar = soup.find('div', class_='lia-menu-bar lia-menu-bar-top lia-component-menu-bar')
         if menubar is not None:
             #Try to find last page number
             last = menubar.find('li', class_='lia-paging-page-last')
