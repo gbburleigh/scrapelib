@@ -418,6 +418,11 @@ class ThreadScraper:
             no_content = None
 
         try:
+            solved_no_content = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-reply lia-list-row-thread-solved lia-message-with-no-content')
+        except:
+            solved_no_content = None
+
+        try:
             readonly = soup.find_all('div', class_='MessageView lia-message-view-forum-message lia-message-view-display lia-row-standard-unread lia-thread-topic lia-list-row-thread-readonly')
         except:
             readonly = None
@@ -449,7 +454,7 @@ class ThreadScraper:
                 self.db.stats.no_content[categ] = {url: len(no_content)}
 
         #Create list to iterate through
-        msgs = op + unread + solved + no_content + resolved + solution + readonly + readonlyreply + solvedreadonly + other
+        msgs = op + unread + solved + no_content + resolved + solution + readonly + readonlyreply + solvedreadonly + other + solved_no_content
 
         msgli = []
         for msg in msgs:

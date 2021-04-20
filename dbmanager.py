@@ -89,6 +89,8 @@ class DBConn:
             """, (str(thread.id), int(category_id), str(thread.title), str(thread.postdate), str(thread.editdate), 
                 str(thread.url), str(thread.op), int(thread.post_count)))
             self.conn.commit()
+        else:
+            print('Thread id already found in DB')
 
     def insert_post(self, id, thread_id, category_id, message_text, author_id, \
         edit_status, post_page, post_index, edit_date='NULL', edit_time='NULL', editor_id='NULL'):
@@ -113,6 +115,8 @@ class DBConn:
             """, (str(post.id), str(thread_id), str(category_id), str(post.message), str(post.postdate), str(post.editdate), str(post.edit_time), \
                 str(post.author.id), str(post.editor.id), str(post.edit_status), int(post.page), int(post.index)))
             self.conn.commit()
+        else:
+            print('Post id already found in DB')
 
     def insert_user(self, uid, user_name, user_url, join_date, user_rank):
         self.curs.execute(f'''
