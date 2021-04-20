@@ -84,7 +84,7 @@ class Crawler:
             
         #Iterate through targets
         for target in self.targets:
-            if status[target.split('/t5/')[1].split('/')[0]] == 'DONE':
+            if status[target.split('/t5/')[1].split('/')[0]] == 'DONE\n':
                 continue
             if iter_ > 0:
                 #Regenerate driver if necessary
