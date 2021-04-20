@@ -233,6 +233,8 @@ class ThreadScraper:
             if len(queue) > 0:
                 #For each item queued
                 for item in queue:
+                    if item[1] == '**Info Inaccessible**':
+                        continue
                     #Get editor profile
                     if '-p' not in sys.argv:
                         self.driver.get(item[1])
@@ -268,6 +270,8 @@ class ThreadScraper:
 
             missingqueue = []
             for item in missing:
+                if item[1] == '**Info Inaccessible**':
+                    continue
                 missing_bool = False
                 if '-p' not in sys.argv:
                     self.driver.get(self.generate_next(url, item[1]))
@@ -294,6 +298,8 @@ class ThreadScraper:
                         print(url)
 
             for item in missingqueue:
+                if item[1] == '**Info Inaccessible**':
+                    continue
                 #Get editor profile
                 if '-p' not in sys.argv:
                     self.driver.get(item[1])
