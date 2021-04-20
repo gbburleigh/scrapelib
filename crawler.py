@@ -50,7 +50,7 @@ class Crawler:
         
         #Category URLs to parse
         if link is None:
-            self.targets = ['https://community.upwork.com/t5/Announcements/bd-p/news', \
+            self.targets = [\#'https://community.upwork.com/t5/Announcements/bd-p/news', \
                             'https://community.upwork.com/t5/Freelancers/bd-p/freelancers', \
                         'https://community.upwork.com/t5/Clients/bd-p/clients', \
                         'https://community.upwork.com/t5/Agencies/bd-p/Agencies']
@@ -71,9 +71,21 @@ class Crawler:
         now = datetime.now()
         self.db.set_start(now)
         failures = []
-
+        status = {}
+        with open(os.getcwd() + '/scan-status.txt', 'r') as f:
+            for line in f.readlines():
+                category = line.split(' ')[0]
+                pagenum = line.split(' ')[1]
+                try:
+                    pagenum.replace('\n', '')
+                except:
+                    pass
+                status[category] = pagenum
+            
         #Iterate through targets
         for target in self.targets:
+            if status[target] == 'DONE':
+                continue
             if iter_ > 0:
                 #Regenerate driver if necessary
                 if '-p' not in sys.argv:
@@ -169,7 +181,17 @@ class Crawler:
         with Bar(f"Parsing {tar.split('/t5/')[1].split('/')[0]}", max=bar_count) as bar:
             #Iterate through each page in range
             cache = []
-            for currentpage in range(1, self.max_page_scroll + 1):
+            status = {}
+            with open(os.getcwd() + '/scan-status.txt', 'r') as f:
+                for line in f.readlines():
+                    category = line.split(' ')[0]
+                    pagenum = line.split(' ')[1]
+                    try:
+                        pagenum.replace('\n', '')
+                    except:
+                        pass
+                    status[category] = pagenum
+            for currentpage in range(status[tar.split('/t5/')[1].split('/')[0]], self.max_page_scroll + 1):
                 #Get correct page
                 if '-p' not in sys.argv:
                     if currentpage == 1:
