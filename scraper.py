@@ -257,73 +257,74 @@ class ThreadScraper:
                     item[0].add_edited(u)
                     postlist.add(item[0])
 
-        missing = []
-        #Debug helper for checking if any posts were missed in last scan
-        if url.split('/t5/')[1].split('/')[0] in self.db.pred.keys():
-            if url in self.db.pred[url.split('/t5/')[1].split('/')[0]].threads.keys():
-                for post in self.db.pred[url.split('/t5/')[1].split('/')[0]].threads[url].postlist.postlist:
-                    if str(post.index) not in checked_indices:
-                        missing.append((post.index, post.page))
+        if '-r' not in sys.argv:
+            missing = []
+            #Debug helper for checking if any posts were missed in last scan
+            if url.split('/t5/')[1].split('/')[0] in self.db.pred.keys():
+                if url in self.db.pred[url.split('/t5/')[1].split('/')[0]].threads.keys():
+                    for post in self.db.pred[url.split('/t5/')[1].split('/')[0]].threads[url].postlist.postlist:
+                        if str(post.index) not in checked_indices:
+                            missing.append((post.index, post.page))
 
-        missingqueue = []
-        for item in missing:
-            missing_bool = False
-            if '-p' not in sys.argv:
-                self.driver.get(self.generate_next(url, item[1]))
-                soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
-            else:
-                r = requests.get(self.generate_next(url, item[1]))
-                soup = BeautifulSoup(r.content, 'html.parser')
-            newli, _ = self.get_message_divs(soup, categ, url)
-            for msg in newli:
-                if msg is None:
-                    continue
+            missingqueue = []
+            for item in missing:
+                missing_bool = False
+                if '-p' not in sys.argv:
+                    self.driver.get(self.generate_next(url, item[1]))
+                    soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
+                else:
+                    r = requests.get(self.generate_next(url, item[1]))
+                    soup = BeautifulSoup(r.content, 'html.parser')
+                newli, _ = self.get_message_divs(soup, categ, url)
+                for msg in newli:
+                    if msg is None:
+                        continue
+                    try:
+                        p, editor_id, edited_url, edited_by = self.parse_message_div(msg, url, item[1])
+                        if p.index == item[0] or p.index not in checked_indices:
+                            if editor_id != '' and edited_by != p.author.name:
+                                missingqueue.append((p, edited_url, edited_by))
+                                missing_bool = True
+                            elif editor_id != '' and edited_by == p.author.name:
+                                p.add_edited(p.author)
+                            if not missing_bool:
+                                postlist.add(p)
+                    except Exception as e:
+                        print(f'Something went wrong while finding missing posts\n {e}')
+                        print(url)
+
+            for item in missingqueue:
+                #Get editor profile
+                if '-p' not in sys.argv:
+                    self.driver.get(item[1])
+                    soup = BeautifulSoup(self.driver.page_source, 'lxml')
+                else:
+                    r = requests.get(item[1])
+                    soup = BeautifulSoup(r.content, 'html.parser')
+                #Parse out relevant user info
+                
+                data_container = soup.find('div', class_='userdata-combine-container')
+                joininfo = data_container.find_all('span', class_='member-info')
+                for entry in joininfo:
+                    if entry.text != 'Member since:':
+                        joindate = entry.text
+                rank_container = data_container.find('div', class_='user-userRank')
+                rank = rank_container.text.strip()
+
+                #Create user object and handle it, then add post
+                u = User(item[2], joindate, item[1], rank)
+                userlist.handle_user(u)
+                item[0].add_edited(u)
+                postlist.add(item[0])
+
+            if old_indices is not None:
+                if sorted(checked_indices) != sorted(old_indices):
+                    diff = self.list_diff(checked_indices, old_indices)
                 try:
-                    p, editor_id, edited_url, edited_by = self.parse_message_div(msg, url, item[1])
-                    if p.index == item[0] or p.index not in checked_indices:
-                        if editor_id != '' and edited_by != p.author.name:
-                            missingqueue.append((p, edited_url, edited_by))
-                            missing_bool = True
-                        elif editor_id != '' and edited_by == p.author.name:
-                            p.add_edited(p.author)
-                        if not missing_bool:
-                            postlist.add(p)
-                except Exception as e:
-                    print(f'Something went wrong while finding missing posts\n {e}')
-                    print(url)
-
-        for item in missingqueue:
-            #Get editor profile
-            if '-p' not in sys.argv:
-                self.driver.get(item[1])
-                soup = BeautifulSoup(self.driver.page_source, 'lxml')
-            else:
-                r = requests.get(item[1])
-                soup = BeautifulSoup(r.content, 'html.parser')
-            #Parse out relevant user info
-            
-            data_container = soup.find('div', class_='userdata-combine-container')
-            joininfo = data_container.find_all('span', class_='member-info')
-            for entry in joininfo:
-                if entry.text != 'Member since:':
-                    joindate = entry.text
-            rank_container = data_container.find('div', class_='user-userRank')
-            rank = rank_container.text.strip()
-
-            #Create user object and handle it, then add post
-            u = User(item[2], joindate, item[1], rank)
-            userlist.handle_user(u)
-            item[0].add_edited(u)
-            postlist.add(item[0])
-
-        if old_indices is not None:
-            if sorted(checked_indices) != sorted(old_indices):
-                diff = self.list_diff(checked_indices, old_indices)
-            try:
-                assert(all(elem in checked_indices for elem in old_indices))
-            except:
-                self.db.stats.diffs[url] = self.list_diff(checked_indices, old_indices)
-                print(f'Got diff {diff} on url {url}')
+                    assert(all(elem in checked_indices for elem in old_indices))
+                except:
+                    self.db.stats.diffs[url] = self.list_diff(checked_indices, old_indices)
+                    print(f'Got diff {diff} on url {url}')
         
         #Generate thread object and return
         t = Thread(postlist, url, author, url.split('/t5/')[1].split('/')[0], \
@@ -468,9 +469,14 @@ class ThreadScraper:
             print(f'Msg obj: {msg}')
 
         #Get profile URL
-        _url = 'https://community.upwork.com' + \
-            msg.find('a', class_='lia-link-navigation lia-page-link lia-user-name-link user_name', href=True)['href']
-        
+        try:
+            _url = 'https://community.upwork.com' + \
+                msg.find('a', class_='lia-link-navigation lia-page-link lia-user-name-link user_name', href=True)['href']
+        except:
+            print(url, pagenum)
+            print(msg.find('a', class_='lia-link-navigation lia-page-link lia-user-name-link user_name'))
+            raise AssertionError
+
         #Get profile name
         name = msg.find('a', class_='lia-link-navigation lia-page-link lia-user-name-link user_name').find('span').text
         

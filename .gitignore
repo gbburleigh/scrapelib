@@ -7,5 +7,5 @@ debug.log
 .json
 .zip
 .csv
-.sql
+.db
 resources/old/
