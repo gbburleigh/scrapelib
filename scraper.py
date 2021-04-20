@@ -473,51 +473,60 @@ class ThreadScraper:
             _url = 'https://community.upwork.com' + \
                 msg.find('a', class_='lia-link-navigation lia-page-link lia-user-name-link user_name', href=True)['href']
         except:
-            print(url, pagenum)
-            print(msg.find('a', class_='lia-link-navigation lia-page-link lia-user-name-link user_name'))
-            raise AssertionError
+            _url = '**Deleted Profile**'
 
         #Get profile name
-        name = msg.find('a', class_='lia-link-navigation lia-page-link lia-user-name-link user_name').find('span').text
-        
+        try:
+            name = msg.find('a', class_='lia-link-navigation lia-page-link lia-user-name-link user_name').find('span').text
+        except:
+            name = '**Deleted Profile**'
         #Get profile joindate
-        member_since = msg.find('span', class_='custom-upwork-member-since').text.split(': ')[1]
-        
-        #Get profile rank
-        rank = msg.find('div', class_='lia-message-author-rank lia-component-author-rank lia-component-message-view-widget-author-rank')\
-            .text.replace(' ', '').strip()
+        try:
+            member_since = msg.find('span', class_='custom-upwork-member-since').text.split(': ')[1]
+        except:
+            member_since = '**Deleted Profile**'
+
+        try:
+            #Get profile rank
+            rank = msg.find('div', class_='lia-message-author-rank lia-component-author-rank lia-component-message-view-widget-author-rank')\
+                .text.replace(' ', '').strip()
+        except:
+            rank = '**Deleted Profile**'
         
         #Get post/edit info container
         dateheader = msg.find('p', class_='lia-message-dates lia-message-post-date lia-component-post-date-last-edited lia-paging-page-link custom-lia-message-dates')
         
-        #Get postdate
-        timestamp = dateheader.find('span', class_='DateTime lia-message-posted-on lia-component-common-widget-date')\
-                    .find('span', class_='message_post_text').text
-        
-        #Try to parse an editdate if available
-        try:
-            e = dateheader.find('span', class_='DateTime lia-message-edited-on lia-component-common-widget-date')
-            for span in e.find_all('span', class_='message_post_text'):
-                if span.text != 'by':
-                    editdate = span.text
-        except:
-            editdate = ''
+        if dateheader is not None:
+            #Get postdate
+            timestamp = dateheader.find('span', class_='DateTime lia-message-posted-on lia-component-common-widget-date')\
+                        .find('span', class_='message_post_text').text
+            
+            #Try to parse an editdate if available
+            try:
+                e = dateheader.find('span', class_='DateTime lia-message-edited-on lia-component-common-widget-date')
+                for span in e.find_all('span', class_='message_post_text'):
+                    if span.text != 'by':
+                        editdate = span.text
+            except:
+                editdate = ''
 
-        #Try to parse an editor name if available
-        try:
-            edited_by = dateheader.find('span', class_='username_details').find('span', class_='UserName lia-user-name lia-user-rank-Power-Member lia-component-common-widget-user-name')\
-            .find('a').find('span').text
-        except:
-            edited_by = ''
-        
-        #Try to post an editor URL
-        try:
-            box = dateheader.find('span', class_='username_details').find('span', class_='UserName lia-user-name lia-user-rank-Power-Member lia-component-common-widget-user-name')\
-            .find('a')
-            edited_url = 'https://community.upwork.com/' 
-            edited_url += str(box).split('href="')[1].split('"')[0]
-        except Exception as e:
-            edited_url = ''
+            #Try to parse an editor name if available
+            try:
+                edited_by = dateheader.find('span', class_='username_details').find('span', class_='UserName lia-user-name lia-user-rank-Power-Member lia-component-common-widget-user-name')\
+                .find('a').find('span').text
+            except:
+                edited_by = ''
+            
+            #Try to post an editor URL
+            try:
+                box = dateheader.find('span', class_='username_details').find('span', class_='UserName lia-user-name lia-user-rank-Power-Member lia-component-common-widget-user-name')\
+                .find('a')
+                edited_url = 'https://community.upwork.com/' 
+                edited_url += str(box).split('href="')[1].split('"')[0]
+            except Exception as e:
+                edited_url = ''
+        else:
+            timestamp, editdate, edited_by, edited_url = '**Info Inaccessible**'
 
         #If we have editor info, generate MD5 hash ID for them
         if edited_by != '' and edited_url != '':
