@@ -1446,7 +1446,7 @@ class SiteDB:
         import pathlib
         pathlib.Path(os.getcwd() + f'/cache/csv/fullscan/{category}')\
             .mkdir(parents=True, exist_ok=True)
-        with open(os.getcwd() + f'/cache/csv/fullscan/{category}/{title_str}.csv') as f:
+        with open(os.getcwd() + f'/cache/csv/fullscan/{category}/{title_str}.csv', 'w') as f:
             f = csv.writer(f)
             f.writerow(["title", "post_date", "edit_date", "edit_time", "message_text",\
             "post_moderation", "category", "url", "page", "index", "user_name", \
@@ -1456,7 +1456,7 @@ class SiteDB:
                 for author, post in thread.posts.items():
                     if post.message != '':
                         f.writerow([thread.title, post.postdate, post.editdate, post.edit_time, post.message, \
-                        post.edit_status, category.name, thread.url, post.page, post.index,\
+                        post.edit_status, category, thread.url, post.page, post.index,\
                         post.author.name, post.author.id, post.author.rank, post.author.joindate, \
                         post.author.url, post.editor.name, post.editor.id, post.editor.joindate, post.editor.url, post.editor.rank])
 
