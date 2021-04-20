@@ -191,61 +191,62 @@ class Crawler:
                     except:
                         pass
                     status[category] = pagenum
-            for currentpage in range(int(status[tar.split('/t5/')[1].split('/')[0]]), self.max_page_scroll + 1):
-                #Get correct page
-                if '-p' not in sys.argv:
-                    if currentpage == 1:
-                        self.driver.get(tar)
-                    else:
-                        self.driver.get(self.generate_next(tar, currentpage))
-                    soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
-                else:
-                    if currentpage == 1:
-                        r = requests.get(tar)
-                    else:
-                        r = requests.get(self.generate_next(tar, currentpage))
-                    soup = BeautifulSoup(r.text, 'lxml')
-                #time.sleep(2)
-
-                #Update scraper pagenumber
-                self.scraper.update_page(currentpage)
-
-                #Fetch all URLs on category page
-                urls = self.get_links(soup)
-                #Iterate through URLs we found
-                for url in urls:
-                    if url in self.skipped:
-                        continue
-                    thread = None
+            if status[target.split('/t5/')[1].split('/')[0]] != 'DONE':
+                for currentpage in range(int(status[tar.split('/t5/')[1].split('/')[0]]), self.max_page_scroll + 1):
+                    #Get correct page
                     if '-p' not in sys.argv:
-                        self.driver.get(url)
-                        #Attempt to parse thread page
-                        try:
-                            thread = self.scraper.parse(self.driver.page_source, url, tar.split('/t5/')[1].split('/')[0], iter_)
-                        #This indicates a thread has been made inaccessible, add it to deleted threads
-                        except AttributeError:
-                            if tar.split('/t5/')[1].split('/')[0] in self.db.stats.deleted_threads.keys():
-                                self.db.stats.deleted_threads[tar.split('/t5/')[1].split('/')[0]].append(url)
-                            else:
-                                self.db.stats.deleted_threads[tar.split('/t5/')[1].split('/')[0]] = [url]
+                        if currentpage == 1:
+                            self.driver.get(tar)
+                        else:
+                            self.driver.get(self.generate_next(tar, currentpage))
+                        soup = BeautifulSoup(self.driver.page_source.encode('utf-8').strip(), 'lxml')
                     else:
-                        r = requests.get(url)
-                        try:
-                            thread = self.scraper.parse(r.text, url, tar.split('/t5/')[1].split('/')[0], iter_)
-                        #This indicates a thread has been made inaccessible, add it to deleted threads
-                        except AttributeError:
-                            if tar.split('/t5/')[1].split('/')[0] in self.db.stats.deleted_threads.keys():
-                                self.db.stats.deleted_threads[tar.split('/t5/')[1].split('/')[0]].append(url)
-                            else:
-                                self.db.stats.deleted_threads[tar.split('/t5/')[1].split('/')[0]] = [url]
+                        if currentpage == 1:
+                            r = requests.get(tar)
+                        else:
+                            r = requests.get(self.generate_next(tar, currentpage))
+                        soup = BeautifulSoup(r.text, 'lxml')
                     #time.sleep(2)
-                    if thread is not None and thread.post_count != 0:
-                        cache.append(thread)
-                        threadli.append(thread)
-                        with DBConn() as conn:
-                            conn.insert_from_thread(thread, iter_)
-                        #print(thread.__str__())
-                    bar.next()
+
+                    #Update scraper pagenumber
+                    self.scraper.update_page(currentpage)
+
+                    #Fetch all URLs on category page
+                    urls = self.get_links(soup)
+                    #Iterate through URLs we found
+                    for url in urls:
+                        if url in self.skipped:
+                            continue
+                        thread = None
+                        if '-p' not in sys.argv:
+                            self.driver.get(url)
+                            #Attempt to parse thread page
+                            try:
+                                thread = self.scraper.parse(self.driver.page_source, url, tar.split('/t5/')[1].split('/')[0], iter_)
+                            #This indicates a thread has been made inaccessible, add it to deleted threads
+                            except AttributeError:
+                                if tar.split('/t5/')[1].split('/')[0] in self.db.stats.deleted_threads.keys():
+                                    self.db.stats.deleted_threads[tar.split('/t5/')[1].split('/')[0]].append(url)
+                                else:
+                                    self.db.stats.deleted_threads[tar.split('/t5/')[1].split('/')[0]] = [url]
+                        else:
+                            r = requests.get(url)
+                            try:
+                                thread = self.scraper.parse(r.text, url, tar.split('/t5/')[1].split('/')[0], iter_)
+                            #This indicates a thread has been made inaccessible, add it to deleted threads
+                            except AttributeError:
+                                if tar.split('/t5/')[1].split('/')[0] in self.db.stats.deleted_threads.keys():
+                                    self.db.stats.deleted_threads[tar.split('/t5/')[1].split('/')[0]].append(url)
+                                else:
+                                    self.db.stats.deleted_threads[tar.split('/t5/')[1].split('/')[0]] = [url]
+                        #time.sleep(2)
+                        if thread is not None and thread.post_count != 0:
+                            cache.append(thread)
+                            threadli.append(thread)
+                            with DBConn() as conn:
+                                conn.insert_from_thread(thread, iter_)
+                            #print(thread.__str__())
+                        bar.next()
                 if '-full' in sys.argv:
                     if currentpage % 10 == 0 or currentpage == self.max_page_scroll:
                         self.db.write_segment(cache, tar.split('/t5/')[1].split('/')[0], f'{currentpage-10}-{currentpage}')
