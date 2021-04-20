@@ -250,14 +250,14 @@ class Crawler:
                                 conn.insert_from_thread(thread, iter_)
                             #print(thread.__str__())
                         bar.next()
-                if '-full' in sys.argv:
-                    if currentpage % 10 == 0 or currentpage == self.max_page_scroll:
-                        self.db.write_segment(cache, tar.split('/t5/')[1].split('/')[0], f'{currentpage-10}-{currentpage}')
-                        cache = []
-                else:
-                    if currentpage % 1 == 0 or currentpage == self.max_page_scroll:
-                        self.db.write_segment(cache, tar.split('/t5/')[1].split('/')[0], f'{currentpage-1}-{currentpage}')
-                        cache = []
+                    if '-full' in sys.argv:
+                        if currentpage % 10 == 0 or currentpage == self.max_page_scroll:
+                            self.db.write_segment(cache, tar.split('/t5/')[1].split('/')[0], f'{currentpage-10}-{currentpage}')
+                            cache = []
+                    else:
+                        if currentpage % 1 == 0 or currentpage == self.max_page_scroll:
+                            self.db.write_segment(cache, tar.split('/t5/')[1].split('/')[0], f'{currentpage-1}-{currentpage}')
+                            cache = []
                 
         c = Category(threadli, tar.split('/t5/')[1].split('/')[0], iter_, self.max_page_scroll)
         with DBConn() as conn:
