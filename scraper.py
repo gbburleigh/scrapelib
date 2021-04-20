@@ -526,7 +526,7 @@ class ThreadScraper:
             except Exception as e:
                 edited_url = ''
         else:
-            timestamp, editdate, edited_by, edited_url = '**Info Inaccessible**'
+            timestamp, editdate, edited_by, edited_url = '**Info Inaccessible**', '**Info Inaccessible**', '**Info Inaccessible**', '**Info Inaccessible**'
 
         #If we have editor info, generate MD5 hash ID for them
         if edited_by != '' and edited_url != '':
