@@ -526,7 +526,8 @@ class ThreadScraper:
             except Exception as e:
                 edited_url = ''
         else:
-            timestamp, editdate, edited_by, edited_url = datetime.now(), datetime.now(), '**Info Inaccessible**', '**Info Inaccessible**'
+            timestamp, editdate, edited_by, edited_url = datetime.now().strftime("%b %d, %Y %I:%M:%S %p"), datetime.now().strftime("%b %d, %Y %I:%M:%S %p")\
+                , '**Info Inaccessible**', '**Info Inaccessible**'
 
         #If we have editor info, generate MD5 hash ID for them
         if edited_by != '' and edited_url != '':
