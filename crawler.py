@@ -192,8 +192,8 @@ class Crawler:
                         pass
                     status[category] = pagenum
             if status[tar.split('/t5/')[1].split('/')[0]] != 'DONE\n':
-                if int(status[target.split('/t5/')[1].split('/')[0]]) != 1:
-                    for _ in range(30 * int(status[target.split('/t5/')[1].split('/')[0]])):
+                if int(status[tar.split('/t5/')[1].split('/')[0]]) != 1:
+                    for _ in range(30 * int(status[tar.split('/t5/')[1].split('/')[0]])):
                         bar.next()
                 for currentpage in range(int(status[tar.split('/t5/')[1].split('/')[0]]), self.max_page_scroll + 1):
                     #Get correct page
