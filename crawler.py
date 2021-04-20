@@ -191,7 +191,7 @@ class Crawler:
                     except:
                         pass
                     status[category] = pagenum
-            for currentpage in range(status[tar.split('/t5/')[1].split('/')[0]], self.max_page_scroll + 1):
+            for currentpage in range(int(status[tar.split('/t5/')[1].split('/')[0]]), self.max_page_scroll + 1):
                 #Get correct page
                 if '-p' not in sys.argv:
                     if currentpage == 1:
