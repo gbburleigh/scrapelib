@@ -129,11 +129,14 @@ class Crawler:
                         category.add(thread)
                         bar.next()
             iter_ += 1
+        if '-full' not in sys.argv:
             self.db.add(category)
-        for elem in failures:
-            if elem not in self.db.stats.failures:
-                self.db.stats.failures.append(elem)
-        return self.db
+            for elem in failures:
+                if elem not in self.db.stats.failures:
+                    self.db.stats.failures.append(elem)
+            return self.db
+        else:
+            return
 
     def parse_page(self, tar, iter_):
         """
@@ -165,6 +168,7 @@ class Crawler:
         #Progress bar context manager
         with Bar(f"Parsing {tar.split('/t5/')[1].split('/')[0]}", max=bar_count) as bar:
             #Iterate through each page in range
+            cache = []
             for currentpage in range(1, self.max_page_scroll + 1):
                 #Get correct page
                 if '-p' not in sys.argv:
@@ -214,11 +218,17 @@ class Crawler:
                                 self.db.stats.deleted_threads[tar.split('/t5/')[1].split('/')[0]] = [url]
                     #time.sleep(2)
                     if thread is not None and thread.post_count != 0:
+                        cache.append(thread)
                         threadli.append(thread)
                         with DBConn() as conn:
                             conn.insert_from_thread(thread, iter_)
                         #print(thread.__str__())
                     bar.next()
+                if '-full' in sys.argv:
+                    if currentpage % 10 == 0 or currentpage > self.max_page_scroll - 10:
+                        self.db.write_segment(cache, tar.split('/t5/')[1].split('/')[0], f'{currentpage-10}-{currentpage}')
+                        cache = []
+                
         c = Category(threadli, tar.split('/t5/')[1].split('/')[0], iter_, self.max_page_scroll)
         with DBConn() as conn:
             conn.insert_from_category(c)

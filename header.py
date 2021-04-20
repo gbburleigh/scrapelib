@@ -1442,6 +1442,24 @@ class SiteDB:
         self.report()
         self.save_log()
 
+    def write_segment(self, threadli: [Thread], category, title_str):
+        import pathlib
+        pathlib.Path(os.getcwd() + f'/cache/csv/fullscan/{category}')\
+            .mkdir(parents=True, exist_ok=True)
+        with open(os.getcwd() + f'/cache/csv/fullscan/{category}/{title_str}.csv') as f:
+            f = csv.writer(f)
+            f.writerow(["title", "post_date", "edit_date", "edit_time", "message_text",\
+            "post_moderation", "category", "url", "page", "index", "user_name", \
+            "user_id", "user_rank", "user_joindate", "user_url", "editor_name", \
+            "editor_id", "editor_joindate", "editor_url", "editor_rank"])
+            for thread in threadli:
+                for author, post in thread.posts.items():
+                    if post.message != '':
+                        f.writerow([thread.title, post.postdate, post.editdate, post.edit_time, post.message, \
+                        post.edit_status, category.name, thread.url, post.page, post.index,\
+                        post.author.name, post.author.id, post.author.rank, post.author.joindate, \
+                        post.author.url, post.editor.name, post.editor.id, post.editor.joindate, post.editor.url, post.editor.rank])
+
     def report(self):
         """
         Main reporting method for stats accumulated during last scan. Simply flushes results to stdout.

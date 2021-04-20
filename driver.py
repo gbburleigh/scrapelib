@@ -63,10 +63,14 @@ class Driver:
             self.db.pred = old_db.cache
 
         #Generate crawler object
+        
         crawler = self.generate_crawler()
 
         #Generate DB for latest scan
-        self.db = crawler.crawl()
+        if '-full' not in sys.argv:
+            self.db = crawler.crawl()
+        else:
+            _ = crawler.crawl()
 
         if '-r' not in sys.argv:
             #Get deleted info
