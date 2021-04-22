@@ -254,6 +254,8 @@ class Crawler:
                         if currentpage % 10 == 0 or currentpage == self.max_page_scroll:
                             self.db.write_segment(cache, tar.split('/t5/')[1].split('/')[0], f'{currentpage-10}-{currentpage}')
                             cache = []
+                            del self.db
+                            self.db = SiteDB([], 'upwork')
                     else:
                         if currentpage % 1 == 0 or currentpage == self.max_page_scroll:
                             self.db.write_segment(cache, tar.split('/t5/')[1].split('/')[0], f'{currentpage-1}-{currentpage}')

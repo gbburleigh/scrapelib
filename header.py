@@ -1460,6 +1460,26 @@ class SiteDB:
                         post.author.name, post.author.id, post.author.rank, post.author.joindate, \
                         post.author.url, post.editor.name, post.editor.id, post.editor.joindate, post.editor.url, post.editor.rank])
 
+        status = {}
+        with open(os.getcwd() + '/scan-status.txt', 'r') as f:
+            for line in f.readlines():
+                c = line.split(' ')[0]
+                pagenum = line.split(' ')[1]
+                try:
+                    pagenum.replace('\n', '')
+                except:
+                    pass
+                status[c] = pagenum
+        with open(os.getcwd() + '/scan-status.txt', 'w') as f:
+            f.truncate(0)
+            for key in status.keys():
+                if key == category:
+                    f.write(f"{category} {title_str.split('-')[1]}\n")
+                else:
+                    f.write(f'{key} {status[key]}')
+            
+
+
     def report(self):
         """
         Main reporting method for stats accumulated during last scan. Simply flushes results to stdout.
